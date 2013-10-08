@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Prepare the build environment
-# libtoolize
+libtoolize
 aclocal
 autoheader
 automake --add-missing

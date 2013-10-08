@@ -1,2 +1,2 @@
 bin_PROGRAMS = perftest
-perftest_SOURCES = perftest.cpp tsc.cpp
+perftest_SOURCES = perftest.cpp tsc.cpp clockrate.cpp

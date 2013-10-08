@@ -9,6 +9,9 @@
 // Platform includes
 #include <sys/types.h>
 
+// Standard C++ libraries
+#include <vector>
+
 // Project includes
 #include "tsc.hpp"
-
+#include "clockrate.hpp"
