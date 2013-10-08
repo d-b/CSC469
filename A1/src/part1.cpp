@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
                 std::cout << period_type[j] << " " << i << ": start at " << period.start
                           << ", duration " << duration
                           << " cycles (" << std::setprecision(6) << std::fixed
-                          << ((double)duration/clockrate)*1e+6
+                          << ((double)duration/clockrate)*1e+3
                           << " ms)" << std::endl;
             }
 
