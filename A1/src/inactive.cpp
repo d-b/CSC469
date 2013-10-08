@@ -8,8 +8,6 @@
 
 // System includes
 #include <time.h>
-#include <iostream>
-#include <iomanip>
 
 /*
  * inactive_periods_ex
@@ -19,13 +17,6 @@
 u_int64_t inactive_periods(int num, u_int64_t threshold, std::vector<period_t>& samples) {
     // Reserve capacity for the samples
     samples.reserve(samples.size() + num);
-
-    // Get the clockrate
-    Clockrate clocksampler(4, 0.25);
-    for(int i = 0; i < 4; i++)
-        clocksampler.sample();
-    Clockrate::hertz clockrate = clocksampler.rate();
-    std::cout << "Measured system frequency: " << clockrate/1e+6 << "MHz" << std::endl;
 
     // Cycle counter instance
     TSC counter;
@@ -61,19 +52,6 @@ u_int64_t inactive_periods(int num, u_int64_t threshold, std::vector<period_t>& 
 
             // Set new ending cycle count
             active.end = current;
-        }
-
-        // Report the inactive/active periods
-        static const char* period_type[]  = {"Active", "Inactive"};
-        period_t* period_array[] = {&active, &inactive};
-        for(int j = 0; j < 2; j++) {
-            period_t& period = *period_array[j];
-            u_int64_t duration = period.end - period.start;
-            std::cout << period_type[j] << " " << i << ": start at " << period.start
-                      << ", duration " << duration
-                      << " cycles (" << std::setprecision(6) << std::fixed
-                      << ((double)duration/clockrate)*1e+6
-                      << " ms)" << std::endl;
         }
     }
 
