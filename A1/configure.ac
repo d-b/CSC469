@@ -1,7 +1,7 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.69])
+AC_PREREQ([2.50])
 AC_INIT([perftest], [1.0], [d.bloemendal@utoronto.ca])
 AC_LANG([C++])
 AC_CONFIG_SRCDIR([src/perftest.cpp])
