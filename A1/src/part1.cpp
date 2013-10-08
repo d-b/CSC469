@@ -86,7 +86,7 @@ int main(int argc, char* argv[]) {
             active.start = iter->end;
         }
     }
-    
+
     // Write results to file if required
     if(!outputpath.empty()) {
         // Write header
@@ -95,14 +95,14 @@ int main(int argc, char* argv[]) {
                << " \"threshold\": " << threshold << "," << std::endl
                << " \"frequency\": " << clockrate << "," << std::endl
                << " \"samples\": [" << std::endl;
-        
+
         // Write samples
         for(auto iter = samples.begin(); iter != samples.end(); iter++)
             stream << "    {\"start\": " << iter->start
                    << ", \"end\": "      << iter->end
                    << ((iter + 1 != samples.end()) ? "}," : "}")
                    << std::endl;
-        
+
         // Write footer & close file
         stream << "]}" << std::endl;
         stream.close();

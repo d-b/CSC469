@@ -6,7 +6,7 @@
 
 #include "perftest.hpp"
 
-// System includes 
+// System includes
 #include <time.h>
 
 /*
