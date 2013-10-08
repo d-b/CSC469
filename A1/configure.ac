@@ -4,8 +4,8 @@
 AC_PREREQ([2.50])
 AC_INIT([perftest], [1.0], [d.bloemendal@utoronto.ca])
 AC_LANG([C++])
-AC_CONFIG_SRCDIR([src/perftest.cpp])
 AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_SRCDIR([src])
 AC_CONFIG_MACRO_DIR([build])
 AM_INIT_AUTOMAKE
 
