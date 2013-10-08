@@ -5,12 +5,10 @@
  */
 
 #include "perftest.hpp"
-
 #include <iostream>
 
 int main(int argc, char* argv[]) {
-    Clockrate clockrate(4, 0.25);
-    for(int i = 0; i < 4; i++)
-        clockrate.sample();
-    std::cout << clockrate.rate()/1e+9 << "GHz" << std::endl;
+    std::vector<period_t> samples;
+    u_int64_t start = inactive_periods(5, 20000, samples);
+    return 0;
 }

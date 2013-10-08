@@ -15,3 +15,4 @@
 // Project includes
 #include "tsc.hpp"
 #include "clockrate.hpp"
+#include "inactive.hpp"
