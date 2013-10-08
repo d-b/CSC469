@@ -5,6 +5,8 @@
  */
 
 #include "perftest.hpp"
+
+// System includes
 #include <time.h>
 #include <iostream>
 #include <iomanip>
@@ -22,7 +24,8 @@ u_int64_t inactive_periods(int num, u_int64_t threshold, std::vector<period_t>& 
     Clockrate clocksampler(4, 0.25);
     for(int i = 0; i < 4; i++)
         clocksampler.sample();
-    Clockrate::hertz clockrate = clocksampler.rate();    
+    Clockrate::hertz clockrate = clocksampler.rate();
+    std::cout << "Measured system frequency: " << clockrate/1e+6 << "MHz" << std::endl;
 
     // Cycle counter instance
     TSC counter;
@@ -63,14 +66,14 @@ u_int64_t inactive_periods(int num, u_int64_t threshold, std::vector<period_t>& 
         // Report the inactive/active periods
         static const char* period_type[]  = {"Active", "Inactive"};
         period_t* period_array[] = {&active, &inactive};
-        for(int i = 0; i < 2; i++) {
-            period_t& period = *period_array[i];
+        for(int j = 0; j < 2; j++) {
+            period_t& period = *period_array[j];
             u_int64_t duration = period.end - period.start;
-            std::cout << period_type[i] << " " << i << ": start at " << period.start
+            std::cout << period_type[j] << " " << i << ": start at " << period.start
                       << ", duration " << duration
                       << " cycles (" << std::setprecision(6) << std::fixed
                       << ((double)duration/clockrate)*1e+6
-                      << "ms)" << std::endl;
+                      << " ms)" << std::endl;
         }
     }
 
