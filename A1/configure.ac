@@ -9,6 +9,9 @@ AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([build])
 AM_INIT_AUTOMAKE
 
+# Add libtool
+LT_INIT
+
 # Checks for programs.
 AC_PROG_CXX
 

@@ -1,9 +1,5 @@
 #!/bin/bash
 
 # Prepare the build environment
-libtoolize
-aclocal
-autoheader
-automake --add-missing
-autoconf
+autoreconf -fvi
 ./configure
