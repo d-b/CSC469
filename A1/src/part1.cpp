@@ -57,11 +57,11 @@ int main(int argc, char* argv[]) {
                << " \"threshold\": " << threshold << "," << std::endl
                << " \"samples\": [" << std::endl;
         
-        for(auto iter = samples.begin(); iter != samples.end(); iter++) {
+        for(auto iter = samples.begin(); iter != samples.end(); iter++)
             stream << "    {\"start\": " << iter->start
                    << ", \"end\": "      << iter->end
-                   << "}," << std::endl;
-        }
+                   << ((iter + 1 != samples.end()) ? "}," : "}")
+                   << std::endl;
         
         stream << "]}" << std::endl;
         stream.close();
