@@ -6,5 +6,14 @@
 
 #pragma once
 
-void start_counter();
-u_int64_t get_counter();
+class TSC {
+public:
+    typedef u_int64_t cycles;
+
+private:
+    cycles initial;
+
+public:
+    void start();
+    cycles count();
+};

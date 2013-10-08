@@ -19,9 +19,10 @@ void Clockrate::sample() {
     req.tv_nsec = (long) ((sample_seconds - req.tv_sec) * 1e+9);
 
     // Capture sample
-    start_counter();
+    TSC counter;
+    counter.start();
     nanosleep(&req, &rem);
-    u_int64_t cycles = get_counter();
+    u_int64_t cycles = counter.count();
     hertz clockrate = (hertz) cycles / sample_seconds;
 
     // See if we need to pop off an existing sample
