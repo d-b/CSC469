@@ -49,7 +49,7 @@ set border 3
 set xtics nomirror
 set noytics
 set term postscript eps 10
-set size 0.45,0.35
+set size 1.15,0.5
 set output "{}"
 """.format(PLOT_PATH)
     process.stdin.write(code.encode('utf8'))
@@ -72,7 +72,7 @@ set output "{}"
     for i, inactive in enumerate(samples):
         active['end'] = inactive['start']
         for j, sample, color in [(0, active, 'blue'), (1, inactive, 'red')]:
-            code = 'set object {} rect from {}, {} to {}, {}, 2 fc rgb "{}" fs solid noborder\n'.format(
+            code = 'set object {} rect from {}, {} to {}, {}, 2 fc rgb "{}" fs solid\n'.format(
                 i*2 + j + 1,
                 sample['start'], BAR_BOTTOM,
                 sample['end'], BAR_BOTTOM + BAR_HEIGHT,
