@@ -18,6 +18,11 @@ DATA_PATH   = os.path.join(SCRIPT_PATH, 'part1.json')
 PLOT_PATH   = os.path.join(SCRIPT_PATH, 'part1.eps')
 PART1_PATH  = os.path.join(BIN_PATH,    'part1')
 
+# Plotting settings
+BAR_BOTTOM  = 0.25
+BAR_HEIGHT  = 1.75
+PLOT_HEIGHT = 3
+
 def build():
     ''' build prgoram using the build script '''
     if(not os.path.isfile(PART1_PATH)):
@@ -31,24 +36,54 @@ def run_experiment(samples, threshold):
     return json.load(open(DATA_PATH))
 
 def generate_plot(data):
+    # Start gnuplot process
     process = subprocess.Popen(['gnuplot'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    template = """# Part1 plot
+
+    # Write header
+    code = """# Part1 plot
 set title "Activity and Inactive Periods"
 set xlabel "Time (ms)"
+set nokey
+set border 3
+set xtics nomirror
+set noytics
 set term postscript eps 10
 set size 0.45,0.35
 set output "{}"
-set object 1 rect from 0, 1 to 8.76, 2 fs empty
-set object 2 rect from 8.76, 1 to 11, 2 fc rgb "black" fs solid
-set object 3 rect from  11, 1 to 13, 2 fs empty
-set object 4 rect from 13, 1 to 14, 2 fc rgb "black" fs solid
-set object 5 rect from 14, 1 to 19, 2 fs empty
-set object 6 rect from 19, 1 to 31, 2 fc rgb "black" fs solid
-set object 7 rect from 31, 1 to 33, 2 fs empty
-set object 8 rect from 33, 1 to 34, 2 fc rgb "black" fs solid
-plot [0:40] [0:3] 0"""
-    plotcode = template.format(PLOT_PATH)
-    process.stdin.write(plotcode.encode('utf8'))
+""".format(PLOT_PATH)
+    process.stdin.write(code.encode('utf8'))
+
+    # Scaling factor
+    factor = (1/data['frequency'])*1e+3
+
+    # Get start
+    start = data['start']*factor
+
+    # Scale the samples
+    samples = [{'start': sample['start']*factor,
+                'end'  : sample['end'  ]*factor} for sample in data['samples']]
+
+    # Compute the max end
+    max_end = max([x['end'] for x in samples])
+
+    # Write the samples
+    active = {'start': start, 'end': start}
+    for i, inactive in enumerate(samples):
+        active['end'] = inactive['start']
+        for j, sample, color in [(0, active, 'blue'), (1, inactive, 'red')]:
+            code = 'set object {} rect from {}, {} to {}, {}, 2 fc rgb "{}" fs solid noborder\n'.format(
+                i*2 + j + 1,
+                sample['start'], BAR_BOTTOM,
+                sample['end'], BAR_BOTTOM + BAR_HEIGHT,
+                color)
+            process.stdin.write(code.encode('utf8'))
+        active['start'] = inactive['end']
+
+    # Render the plot
+    code = 'plot [0:{}] [0:{}] 0\n'.format(max_end, PLOT_HEIGHT)
+    process.stdin.write(code.encode('utf8'))
+
+    # Cleanup
     process.stdin.close()
     process.wait()
 
@@ -58,7 +93,7 @@ def main(arguments):
     build()
 
     # Collect some data
-    data = run_experiment(10, 9000)
+    data = run_experiment(50, 17500)
     generate_plot(data)
 
 # Entry point
