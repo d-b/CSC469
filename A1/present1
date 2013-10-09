@@ -1,0 +1,21 @@
+#!/bin/bash
+#
+# CSC469 - Performance Evaluation
+#
+# Daniel Bloemendal <d.bloemendal@gmail.com>
+#
+
+# Get full base path
+pushd `dirname $0` > /dev/null
+BASEPATH=`pwd -P`
+popd > /dev/null
+
+# Generate and present documentation
+pushd $BASEPATH/doc > /dev/null
+echo -n "Generating documentation... "
+pdflatex -interaction=batchmode P1.tex > /dev/null 2>&1
+echo "Done!"
+echo -n "Presenting documentation... "
+acroread part1.pdf > /dev/null 2>&1
+echo "Done!"
+popd > /dev/null
