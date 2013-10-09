@@ -80,34 +80,67 @@ continue its operation. Therefore we expected the process would receive almost a
 with short consistent interruptions determined by the frequency of the timer interrupt.
 
 \subsection{Hardware}
-The experiment was run on a CDF lab computer with the following specifications \\ \\
-\begin{tabular}{ll}
-    \textbf{Host} & b2240-06.cdf.toronto.edu \\
-    \hline
-    \textbf{CPU} & Intel\textregistered\ Core\texttrademark\ i5-3570 \\
-                 & 3.40GHz clock \\
-                 & 6MB cache \\
-                 & 4 cores \\
-    \hline
-    \textbf{Memory} & 20GB physical \\
-                    & 1GB swap \\
-    \hline
-    \textbf{Kernel} & Linux 3.2.0 x86\_64
-\end{tabular}
-
-\subsection{Data}
-The following is plot based on 50 gathered samples of active \& inactive periods. We considered a
-process to be inactive if at least 2500 CPU cycles occurred outside of the process. In other
-words the CPU cycle threshold for the experiment was 2500.
-
+The experiment was run on a CDF lab computer with the specifications listed in figure
+\ref{fig:hardware}.
 \begin{figure}[h]
+    \caption{b2240-06 hardware}
     \centering
-    \includegraphics[scale=1]{A1P1.eps}
+    \begin{tabular}{ll}
+        \textbf{Host} & b2240-06.cdf.toronto.edu \\
+        \hline
+        \textbf{CPU} & Intel\textregistered\ Core\texttrademark\ i5-3570 \\
+                     & 3.40GHz clock \\
+                     & 6MB cache \\
+                     & 4 cores \\
+        \hline
+        \textbf{Memory} & 20GB physical \\
+                        & 1GB swap \\
+        \hline
+        \textbf{Kernel} & Linux 3.2.0 x86\_64
+    \end{tabular}
+    \label{fig:hardware}
 \end{figure}
 
+\subsection{Data}
+The plot in figure \ref{fig:plot} based on 50 gathered samples of active \& inactive periods. We
+considered a process to be inactive if at least 2500 CPU cycles occurred outside of the process. In
+other words the CPU cycle threshold for the experiment was 2500.
 
-\section{Context switches}
+\begin{figure}[h]
+    \caption{Plot}
+    \centering
+    \includegraphics[scale=1]{A1P1.eps}
+    \label{fig:plot}
+\end{figure}
 
+\newpage
+
+The following is a table with the first 15 samples of the experiment
+
+\begin{figure}[h]
+    \caption{Samples}
+    \begin{tabular}{c|c|c}
+        Sample & Active (ms) & Inactive (ms) \\
+        \hline
+        1 & 1.841980 & 0.008492 \\
+        2 & 3.990101 & 0.003561 \\
+        3 & 3.994773 & 0.004417 \\
+        4 & 3.994298 & 0.017977 \\
+        5 & 0.105673 & 0.008597 \\
+        6 & 3.854323 & 0.008083 \\
+        7 & 0.003849 & 0.001198 \\
+        8 & 0.013294 & 0.008201 \\
+        9 & 3.963119 & 0.008064 \\
+        10 & 0.004783 & 0.001016 \\
+        11 & 0.019713 & 0.008198 \\
+        12 & 3.956560 & 0.008127 \\
+        13 & 0.004877 & 0.002799 \\
+        14 & 0.011026 & 0.008207 \\
+        15 & 3.963632 & 0.008121
+    \end{tabular}
+\end{figure}
+
+\section{Observations}
 
 % ----------------------------------------------------------------
 \end{document}
