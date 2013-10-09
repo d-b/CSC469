@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+#
+# CSC469 - Performance Evaluation
+#
+# Daniel Bloemendal <d.bloemendal@gmail.com>
+#
+
+# Python imports
+import os
+import json
+import subprocess
+
+# Get paths
+SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
+BIN_PATH    = os.path.join(SCRIPT_PATH, 'bin')
+SETUP_PATH  = os.path.join(SCRIPT_PATH, 'setup')
+DATA_PATH   = os.path.join(SCRIPT_PATH, 'part1.json')
+PLOT_PATH   = os.path.join(SCRIPT_PATH, 'part1.eps')
+PART1_PATH  = os.path.join(BIN_PATH,    'part1')
+
+def build():
+    ''' build prgoram using the build script '''
+    if(not os.path.isfile(PART1_PATH)):
+        os.system('bash -c "{}"'.format(SETUP_PATH))
+        if(not os.path.isfile(PART1_PATH)):
+            raise Exception('build failed')
+
+def run_experiment(samples, threshold):
+    os.system('bash -c "{} -s -n {} -t {} -o {}"'.format(
+        PART1_PATH, int(samples), int(threshold), DATA_PATH))
+    return json.load(open(DATA_PATH))
+
+def generate_plot(data):
+    process = subprocess.Popen(['gnuplot'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    template = """# Part1 plot
+set title "Activity and Inactive Periods"
+set xlabel "Time (ms)"
+set term postscript eps 10
+set size 0.45,0.35
+set output "{}"
+set object 1 rect from 0, 1 to 8.76, 2 fs empty
+set object 2 rect from 8.76, 1 to 11, 2 fc rgb "black" fs solid
+set object 3 rect from  11, 1 to 13, 2 fs empty
+set object 4 rect from 13, 1 to 14, 2 fc rgb "black" fs solid
+set object 5 rect from 14, 1 to 19, 2 fs empty
+set object 6 rect from 19, 1 to 31, 2 fc rgb "black" fs solid
+set object 7 rect from 31, 1 to 33, 2 fs empty
+set object 8 rect from 33, 1 to 34, 2 fc rgb "black" fs solid
+plot [0:40] [0:3] 0"""
+    plotcode = template.format(PLOT_PATH)
+    process.stdin.write(plotcode.encode('utf8'))
+    process.stdin.close()
+    process.wait()
+
+def main(arguments):
+    ''' main program '''
+    # Build project if not yet built
+    build()
+
+    # Collect some data
+    data = run_experiment(10, 9000)
+    generate_plot(data)
+
+# Entry point
+if __name__ == '__main__':
+    from sys import argv
+    main(argv)

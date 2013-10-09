@@ -1,5 +1,23 @@
 #!/bin/bash
+#
+# CSC469 - Performance Evaluation
+#
+# Daniel Bloemendal <d.bloemendal@gmail.com>
+#
 
-# Prepare the build environment
-autoreconf -fvi
-./configure
+# Get full base path
+pushd `dirname $0` > /dev/null
+BASEPATH=`pwd -P`
+popd > /dev/null
+
+# Prepare build environment
+echo -n "Preparing build scripts... "
+autoreconf -fvi > /dev/null 2>&1
+./configure --prefix=$BASEPATH > /dev/null 2>&1
+echo "Done!"
+
+# Build and install
+echo -n "Building... "
+make > /dev/null 2>&1
+make install > /dev/null 2>&1
+echo "Done!"
