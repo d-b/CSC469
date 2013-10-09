@@ -16,6 +16,6 @@ echo -n "Generating documentation... "
 pdflatex -interaction=batchmode P1.tex > /dev/null 2>&1
 echo "Done!"
 echo -n "Presenting documentation... "
-acroread part1.pdf > /dev/null 2>&1
+acroread P1.pdf > /dev/null 2>&1
 echo "Done!"
 popd > /dev/null
