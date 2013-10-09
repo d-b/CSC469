@@ -83,17 +83,17 @@ with short consistent interruptions determined by the frequency of the timer int
 The experiment was run on a CDF lab computer with the specifications listed in figure
 \ref{fig:hardware}.
 \begin{figure}[h]
-    \caption{b2240-06 hardware}
+    \caption{b2220-05 hardware}
     \centering
     \begin{tabular}{ll}
-        \textbf{Host} & b2240-06.cdf.toronto.edu \\
+        \textbf{Host} & b2220-05.cdf.toronto.edu \\
         \hline
-        \textbf{CPU} & Intel\textregistered\ Core\texttrademark\ i5-3570 \\
-                     & 3.40GHz clock \\
-                     & 6MB cache \\
-                     & 4 cores \\
+        \textbf{CPU} & Intel\textregistered\ Core\texttrademark\ CPU G630 \\
+                     & 2.70GHz clock \\
+                     & 3MB cache \\
+                     & 2 cores \\
         \hline
-        \textbf{Memory} & 20GB physical \\
+        \textbf{Memory} & 8GB physical \\
                         & 1GB swap \\
         \hline
         \textbf{Kernel} & Linux 3.2.0 x86\_64
@@ -122,25 +122,44 @@ The following is a table with the first 15 samples of the experiment
     \begin{tabular}{c|c|c}
         Sample & Active (ms) & Inactive (ms) \\
         \hline
-        1 & 1.841980 & 0.008492 \\
-        2 & 3.990101 & 0.003561 \\
-        3 & 3.994773 & 0.004417 \\
-        4 & 3.994298 & 0.017977 \\
-        5 & 0.105673 & 0.008597 \\
-        6 & 3.854323 & 0.008083 \\
-        7 & 0.003849 & 0.001198 \\
-        8 & 0.013294 & 0.008201 \\
-        9 & 3.963119 & 0.008064 \\
-        10 & 0.004783 & 0.001016 \\
-        11 & 0.019713 & 0.008198 \\
-        12 & 3.956560 & 0.008127 \\
-        13 & 0.004877 & 0.002799 \\
-        14 & 0.011026 & 0.008207 \\
-        15 & 3.963632 & 0.008121
+        1  & 1.502190 & 0.011074 \\
+        2  & 3.987884 & 0.003625 \\
+        3  & 3.995221 & 0.019725 \\
+        4  & 3.979117 & 0.004095 \\
+        5  & 3.994876 & 0.011533 \\
+        6  & 0.058799 & 0.007539 \\
+        7  & 3.920979 & 0.002301 \\
+        8  & 3.999042 & 0.138075 \\
+        9  & 3.858219 & 0.005810 \\
+        10 & 3.995646 & 0.003678 \\
+        11 & 3.995211 & 0.001495 \\
+        12 & 3.997288 & 0.005308 \\
+        13 & 3.993599 & 0.002890 \\
+        14 & 3.996001 & 0.001489 \\
+        15 & 3.997299 & 0.003389
     \end{tabular}
+    \label{fig:samples}
 \end{figure}
 
-\section{Observations}
+\subsection{Observations}
+From the data we can safely assume that the time slice our single process is receiving before the
+timer interrupt fires is 4 milliseconds long. As for the time it takes to service a timer interrupt,
+it seems to vary. Perhaps the operating system is performing other maintenance operations during the
+interrupt. However, if we exclude some of the outliers like sample 8 in
+\hyperref[fig:samples]{\textbf{figure \ref*{fig:samples}}} we come up with an average of $2.4$
+microseconds for a timer interrupt using all 50 samples. Refer to the ``format\_data\_A1'' program
+for further details on how the average was computed.
+
+It should be noted that it seems like one other non-timer interrupt occurred during data collection.
+Referring to sample 6 in \hyperref[fig:samples]{\textbf{figure \ref*{fig:samples}}}, we see that our
+process was interrupted shortly after the active period began. Since the data was collected over an
+SSH session, this may be an interrupt related to network I/O. However, it could certainly be some
+other device.
+
+\subsection{Conclusions}
+It appears that our hypothesis is correct. The active process received most of the CPU time during
+the experiment and timer interrupts were not expensive at all, taking only $2.4$ microseconds to
+service on average. \\
 
 % ----------------------------------------------------------------
 \end{document}
