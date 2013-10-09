@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+#
+# CSC469 - Performance Evaluation
+#
+# Daniel Bloemendal <d.bloemendal@gmail.com>
+#
+
+# Python imports
+import os
+import json
+
+def format(data):
+    # Scaling factor
+    factor = (1/data['frequency'])*1e+3
+
+    # Get start
+    start = data['start']*factor
+
+    # Scale the samples
+    samples = [{'start': sample['start']*factor,
+                'end'  : sample['end'  ]*factor} for sample in data['samples']]
+
+    # Print the samples
+    active = {'start': start, 'end': start}
+    for inactive in samples:
+        active['end'] = inactive['start']
+        print('Active: {:5f}ms Inactive: {:5f}ms'.format(
+            active['end'] - active['start'],
+            inactive['end'] - inactive['start']))
+        active['start'] = inactive['end']
+
+def main(arguments):
+    ''' main program '''
+    if len(arguments) > 1:
+        try:
+            datafile = open(arguments[1])
+            data = json.load(datafile)
+            format(data)
+        except:
+            print('Could not load data from "{}"'.format(arguments[1]))
+    else:
+        print('Usage: {} [<data file>]'.format(arguments[0]))
+
+# Entry point
+if __name__ == '__main__':
+    from sys import argv
+    main(argv)
