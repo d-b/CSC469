@@ -21,8 +21,8 @@ PLOT_PATH   = os.path.join(DOC_PATH, 'part1.eps')
 PART1_PATH  = os.path.join(BIN_PATH, 'part1')
 
 # Plotting settings
-BAR_BOTTOM  = 0.25
-BAR_HEIGHT  = 1.75
+BAR_BOTTOM  = 0.35
+BAR_HEIGHT  = 1.5
 PLOT_HEIGHT = 3
 
 def build():
@@ -42,9 +42,9 @@ def generate_plot(data):
 
     # Write header
     code = """# Part1 plot
-set title "Activity and Inactive Periods"
+set title "Active and Inactive Periods"
 set xlabel "Time (ms)"
-set nokey
+set key below
 set border 3
 set xtics nomirror
 set noytics
@@ -81,7 +81,8 @@ set output "{}"
         active['start'] = inactive['end']
 
     # Render the plot
-    code = 'plot [0:{}] [0:{}] 0\n'.format(max_end, PLOT_HEIGHT)
+    code = ('plot [0:{}] [0:{}] 0 lt 1 lc rgb "blue" title "Active", ' + \
+            '0 lt 1 lc rgb "red" title "Inactive"\n').format(max_end, PLOT_HEIGHT)
     process.stdin.write(code.encode('utf8'))
 
     # Cleanup
@@ -97,7 +98,7 @@ def main(arguments):
     build()
 
     # Collect some data
-    data = run_experiment(50, 17500)
+    data = run_experiment(50, 9000)
     generate_plot(data)
 
     # Present the results

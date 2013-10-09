@@ -12,12 +12,12 @@ popd > /dev/null
 
 # Generate and present documentation
 pushd $BASEPATH/doc > /dev/null
-echo -n "Generating documentation... "
+echo -n "Generating presentation... "
 latex -interaction=batchmode P1.tex > /dev/null 2>&1
 dvips -o P1.ps P1.dvi > /dev/null 2>&1
 ps2pdf P1.ps > /dev/null 2>&1
 echo "Done!"
-echo -n "Presenting documentation... "
+echo -n "Displaying presentation... "
 acroread P1.pdf > /dev/null 2>&1
 echo "Done!"
 popd > /dev/null
