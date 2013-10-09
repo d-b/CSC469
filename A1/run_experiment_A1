@@ -98,7 +98,7 @@ def main(arguments):
     build()
 
     # Collect some data
-    data = run_experiment(50, 9000)
+    data = run_experiment(50, 2500)
     generate_plot(data)
 
     # Present the results
