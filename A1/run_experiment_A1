@@ -31,7 +31,7 @@ def build():
             raise Exception('build failed')
 
 def run_experiment(samples, threshold):
-    os.system('bash -c "{} -s -n {} -t {} -o {}"'.format(
+    os.system('bash -c "{} -n {} -t {} -o {}"'.format(
         PART1_PATH, int(samples), int(threshold), DATA_PATH))
     return json.load(open(DATA_PATH))
 
