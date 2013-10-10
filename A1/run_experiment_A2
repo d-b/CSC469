@@ -6,7 +6,7 @@
 #
 
 # Experiment settings
-EXPERIMENT_SAMPLES   = 15
+EXPERIMENT_SAMPLES   = 25
 EXPERIMENT_THRESHOLD = 20000
 
 # Python imports
@@ -38,14 +38,17 @@ def build():
             raise Exception('build failed')
 
 def reconcile(data1, data2):
-    # Find difference in reference value
-    first, second = (data1, data2) if(data1['reference'] < data2['reference']) else (data2, data1)
-    difference = second['reference'] - first['reference']
+    # Find first and second process
+    first, second = (data1, data2) if(data1['start'] < data2['start']) else (data2, data1)
+    start = first['start']
+    # Normalize data
+    for dat in [data1, data2]:
+        dat['start'] -= start
+        for sample in dat['samples']:
+            sample['start'] -= start
+            sample['end'] -= start
     # Eliminate samples that occur before the second process starts
-    first['samples'] = [{'start': x['start'] - difference, 'end': x['end']}
-                        for x in first['samples'] if x['start'] - difference >= 0]
-    # Set references to be the same now that the sets have been reconciled
-    first['reference'] = second['reference']
+    first['samples'] = [x for x in first['samples'] if x['start'] >= second['samples'][0]['start']]
     # Find out which process ends first
     shorter, longer = (data1, data2) if(data1['samples'][-1]['end']
                                       < data2['samples'][-1]['end']) else (data2, data1)
@@ -54,7 +57,7 @@ def reconcile(data1, data2):
 
 def run_experiment(samples, threshold):
     outputs = [DATA1_PATH, DATA2_PATH]
-    arguments = ['-n {} -t {} -o {}'.format(
+    arguments = ['-s -f -n {} -t {} -o {}'.format(
         samples, threshold, outputs[i]).split() for i in range(2)]
     instances = [subprocess.Popen([APP_PATH] + arguments[i],
         stdin=subprocess.PIPE, stdout=subprocess.PIPE) for i in range(2)]
