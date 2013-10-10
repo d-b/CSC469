@@ -24,6 +24,12 @@ int main(int argc, char* argv[]) {
     // Sanity check
     if(argc <= 0) return -1;
 
+    // Display usage if no arguments are supplied
+    if(argc <= 1) {
+        usage(argv[0]);
+        return -1;
+    }
+
     // Defaults
     int samplecount = 10;
     u_int64_t threshold = 10000;
