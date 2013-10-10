@@ -97,12 +97,13 @@ def analyze(data):
         while(True):
             try: other = next(iother)
             except: break
-            if(sample['end'] < other['start']):
-                if(not other['active']): break
-                start = sample['end']
-                duration = other['start'] - sample['end']
-                print('Context switch at: {:5f} ms (Duration: {:5f} ms)'.format(
-                    start*factor, duration*factor))
+            if(sample['end'] > other['start']): continue
+            if(not other['active']): break
+            start = sample['end']
+            duration = other['start'] - sample['end']
+            print('Context switch at: {:5f} ms (Duration: {:5f} ms)'.format(
+                start*factor, duration*factor))
+            break
 
 def generate_plot(data):
     # Start gnuplot process
