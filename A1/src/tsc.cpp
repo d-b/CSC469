@@ -6,9 +6,6 @@
 
 #include "perftest.hpp"
 
-// Fixed mode status
-bool TSC::fixedmode;
-
 /* Set *hi and *lo to the high and low order bits of the cycle counter.
  * Implementation requires assembly code to use the rdtsc instruction.
  */
@@ -19,6 +16,11 @@ inline void access_counter(unsigned int* hi, unsigned int* lo)
       : /* No input */                        /* the two outputs */
       : "%edx", "%eax");
 }
+
+//
+// TSC statics
+//
+bool TSC::fixedmode;
 
 /*
  * TSC::fixed

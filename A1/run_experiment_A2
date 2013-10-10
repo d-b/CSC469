@@ -70,10 +70,41 @@ def run_experiment(samples, threshold):
     for x in instances: x.wait()
     return [json.load(open(o)) for o in outputs]
 
-def generate_plot(data):
-    # Reconcile data sets
-    reconcile(data[0], data[1])
+def analyze(data):
+    # Calculate scaling factor
+    factor = (1/data[0]['frequency'])*1e+3
+    # Process list
+    processes = []
+    # Build period sequences
+    for proc in data:
+        sequence = []
+        active = {'start': proc['start'], 'end': proc['start'], 'active': True}
+        for sample in proc['samples']:
+            active['end'] = sample['start']
+            sequence.append(dict(active))
+            inactive = dict(sample)
+            inactive['active'] = False
+            sequence.append(inactive)
+            active['start'] = inactive['end']
+        processes.append(sequence)
+    # Bail out if necessary
+    if(not all(processes)): return
+    # Look for context switches
+    first, second = processes[:2] if(data[0]['start']
+                                   < data[1]['start']) else list(reversed(processes))[:2]
+    iother = iter(first)
+    for sample in second:
+        while(True):
+            try: other = next(iother)
+            except: break
+            if(sample['end'] < other['start']):
+                if(not other['active']): break
+                start = sample['end']
+                duration = other['start'] - sample['end']
+                print('Context switch at: {:5f} ms (Duration: {:5f} ms)'.format(
+                    start*factor, duration*factor))
 
+def generate_plot(data):
     # Start gnuplot process
     process = subprocess.Popen(['gnuplot'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
@@ -179,9 +210,14 @@ def main(arguments):
     data = run_experiment(
         experiment_samples,
         experiment_threshold)
-    generate_plot(data)
+    # Reconcile data sets
+    reconcile(data[0], data[1])
 
-    # Present the results
+    # Analyze the data
+    analyze(data)
+
+    # Generate the plot and present it
+    generate_plot(data)
     present()
 
 # Entry point
