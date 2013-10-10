@@ -17,7 +17,7 @@
 
 void usage(const char* application) {
     std::cout << "Usage: " << application
-              << " [-n <samples>] [-t <threshold>] [-a <affinity mask>] [-s silent] [-o <output file>]" << std::endl;
+              << " [-n <samples>] [-t <threshold>] [-a <affinity mask>] [-f fixed mode] [-s silent] [-o <output file>]" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -27,13 +27,14 @@ int main(int argc, char* argv[]) {
     // Defaults
     int samplecount = 10;
     u_int64_t threshold = 10000;
+    unsigned int affinitymask = 1;
+    bool fixed = false;
     bool silent = false;
     std::string outputpath;
-    unsigned int affinitymask = 1;
 
     // Process arguments
     int option;
-    while ((option = getopt (argc, argv, "n:t:a:so:")) != -1)
+    while ((option = getopt (argc, argv, "n:t:a:fso:")) != -1)
         switch (option) {
             case 'n':
             samplecount = atoi(optarg);
@@ -45,7 +46,11 @@ int main(int argc, char* argv[]) {
 
             case 'a':
             affinitymask = atoi(optarg);
-            break;            
+            break;
+
+            case 'f':
+            fixed = true;
+            break;
 
             case 's':
             silent = true;
@@ -60,6 +65,9 @@ int main(int argc, char* argv[]) {
                 return -1;
         }
 
+    // Set fixed mode operation
+    TSC::fixed(fixed);
+
     // Set processor affinity
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
@@ -73,7 +81,6 @@ int main(int argc, char* argv[]) {
 
     // Perform the experiment
     std::vector<period_t> samples;
-    u_int64_t reference = TSC::now();
     u_int64_t start = inactive_periods(samplecount, threshold, samples);
 
     // Get the clockrate
@@ -110,8 +117,7 @@ int main(int argc, char* argv[]) {
     if(!outputpath.empty()) {
         // Write header
         std::ofstream stream(outputpath);
-        stream << "{\"reference\": " << reference << "," << std::endl
-               << " \"start\": " << start << "," << std::endl
+        stream << "{\"start\": " << start << "," << std::endl
                << " \"threshold\": " << threshold << "," << std::endl
                << " \"frequency\": " << clockrate << "," << std::endl
                << " \"samples\": [" << std::endl;

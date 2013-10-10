@@ -23,7 +23,7 @@ u_int64_t inactive_periods(int num, u_int64_t threshold, std::vector<period_t>& 
     counter.start();
 
     // Get starting cycle count
-    u_int64_t start = counter.count();
+    TSC::cycles start = counter.count();
 
     // The inactive period sampler loop
     for(int i = 0; i < num; i++) {
@@ -31,13 +31,13 @@ u_int64_t inactive_periods(int num, u_int64_t threshold, std::vector<period_t>& 
         period_t active, inactive;
 
         // Set initial start and end
-        active.start = counter.count();
+        active.start = (i != 0) ? counter.count() : start;
         active.end   = active.start;
 
         // Loop until inactive period detected
         while(true) {
             // Current cycle count
-            u_int64_t current = counter.count();
+            TSC::cycles current = counter.count();
 
             // See if number of cycles elapsed passes threshold
             if(current - active.end >= threshold) {
