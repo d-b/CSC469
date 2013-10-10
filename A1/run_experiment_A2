@@ -7,7 +7,7 @@
 
 # Experiment settings
 EXPERIMENT_SAMPLES   = 100
-EXPERIMENT_THRESHOLD = 50000
+EXPERIMENT_THRESHOLD = 20000
 
 # Python imports
 import os
