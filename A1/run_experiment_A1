@@ -5,6 +5,10 @@
 # Daniel Bloemendal <d.bloemendal@gmail.com>
 #
 
+# Experiment settings
+EXPERIMENT_SAMPLES   = 50
+EXPERIMENT_THRESHOLD = 2500
+
 # Python imports
 import os
 import json
@@ -98,7 +102,9 @@ def main(arguments):
     build()
 
     # Collect some data
-    data = run_experiment(50, 2500)
+    data = run_experiment(
+        EXPERIMENT_SAMPLES,
+        EXPERIMENT_THRESHOLD)
     generate_plot(data)
 
     # Present the results
