@@ -107,7 +107,7 @@ considered a process to be inactive if at least 2500 CPU cycles occurred outside
 other words the CPU cycle threshold for the experiment was 2500.
 
 \begin{figure}[h]
-    \caption{Plot}
+    \caption{Timer interrupts}
     \centering
     \includegraphics[scale=1]{A1P1.eps}
     \label{fig:plot}
@@ -160,6 +160,16 @@ other device.
 It appears that our hypothesis is correct. The active process received most of the CPU time during
 the experiment and timer interrupts were not expensive at all, taking only $2.4$ microseconds to
 service on average. \\
+
+\newpage
+
+\section{Context switching}
+\begin{figure}[h]
+    \caption{Context switching}
+    \centering
+    \includegraphics[scale=1]{A1P2.eps}
+    \label{fig:plot}
+\end{figure}
 
 % ----------------------------------------------------------------
 \end{document}
