@@ -9,10 +9,6 @@
 import os
 import json
 
-# Sample settings
-MIN_ACTIVE   = 0.25
-MAX_INACTIVE = 0.01
-
 def format(data):
     # Scaling factor
     factor = (1/data['frequency'])*1e+3
@@ -24,9 +20,6 @@ def format(data):
     samples = [{'start': sample['start']*factor,
                 'end'  : sample['end'  ]*factor} for sample in data['samples']]
 
-    # Averages
-    average = {'active': 0, 'inactive': 0, 'samples': 0}
-
     # Print the samples
     active = {'start': start, 'end': start}
     for i, inactive in enumerate(samples):
@@ -35,24 +28,11 @@ def format(data):
         # Compute durations
         duration = {'active': active['end'] - active['start'],
                     'inactive': inactive['end'] - inactive['start']}
-        # Add to averages if it is a valid period
-        if(i > 0 and duration['active'] > MIN_ACTIVE
-                 and duration['inactive'] < MAX_INACTIVE):
-            average['active'] += duration['active']
-            average['inactive'] += duration['inactive']
-            average['samples'] += 1
         # Display the sample
         print('Active: {:5f}ms Inactive: {:5f}ms'.format(
             duration['active'], duration['inactive']))
         # Begin the next active period
         active['start'] = inactive['end']
-
-    # Finish computing average
-    for k in ['active', 'inactive']:
-        average[k] /= average['samples']
-
-    # Display averages
-    print('Active Average: {active}\nInactive Average: {inactive}'.format(**average))
 
 def main(arguments):
     ''' main program '''

@@ -14,6 +14,7 @@
             pdfmenubar=false,
             pdfdisplaydoctitle=true,
             bookmarks=false]{hyperref}
+\usepackage[table]{xcolor}
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{mathtools}
@@ -119,7 +120,9 @@ The following is a table with the first 15 samples of the experiment
 
 \begin{figure}[h]
     \caption{Samples}
+    \rowcolors{2}{gray!25}{white}
     \begin{tabular}{c|c|c}
+        \rowcolor{gray!50}
         Sample & Active (ms) & Inactive (ms) \\
         \hline
         1  & 1.502190 & 0.011074 \\
@@ -146,9 +149,8 @@ From the data we can safely assume that the time slice our single process is rec
 timer interrupt fires is 4 milliseconds long. As for the time it takes to service a timer interrupt,
 it seems to vary. Perhaps the operating system is performing other maintenance operations during the
 interrupt. However, if we exclude some of the outliers like sample 8 in
-\hyperref[fig:samples]{\textbf{figure \ref*{fig:samples}}} we come up with an average of $2.4$
-microseconds for a timer interrupt using all 50 samples. Refer to the ``format\_data\_A1'' program
-for further details on how the average was computed.
+\hyperref[fig:samples]{\textbf{figure \ref*{fig:samples}}} we come up with approximately $2.4$
+microseconds for a timer interrupt using all 50 samples.
 
 It should be noted that it seems like one other non-timer interrupt occurred during data collection.
 Referring to sample 6 in \hyperref[fig:samples]{\textbf{figure \ref*{fig:samples}}}, we see that our
@@ -164,12 +166,49 @@ service on average. \\
 \newpage
 
 \section{Context switching}
+In order to measure context switching time, two instances of the instrumentation tool were spawned.
+After obtaining the active \& inactive periods from both running processes we come up with the
+following interleaved time slices.
+
 \begin{figure}[h]
     \caption{Context switching}
     \centering
     \includegraphics[scale=1]{A1P2.eps}
     \label{fig:plot}
 \end{figure}
+
+Context switch time is then computed by looking for the difference in cycles between the end of an
+active period in \textbf{process 1} and the beginning of an active period directly after in
+\textbf{process 2}. The following is a table with the first 15 results.
+
+\begin{figure}[h]
+    \caption{Context switching time}
+    \rowcolors{2}{gray!25}{white}
+    \begin{tabular}{c|c}
+        \rowcolor{gray!50}
+        Time (ms) & Duration (ms) \\
+        \hline
+        $19.980906 $ & $0.001890$ \\
+        $43.974582 $ & $0.001836$ \\
+        $67.968357 $ & $0.001767$ \\
+        $91.962007 $ & $0.001769$ \\
+        $115.955662$ & $0.001778$ \\
+        $139.949312$ & $0.001768$ \\
+        $163.943115$ & $0.001784$ \\
+        $187.934263$ & $0.003382$ \\
+        $211.930346$ & $0.001780$ \\
+        $235.924042$ & $0.001732$ \\
+        $259.917750$ & $0.001759$ \\
+        $283.909039$ & $0.001810$ \\
+        $307.905116$ & $0.001737$ \\
+        $331.896405$ & $0.001830$ \\
+        $355.892555$ & $0.001700$
+    \end{tabular}
+\end{figure}
+
+The context switch seems to last around $1.8$ microseconds on average, and in some cases lasts
+a little more than $3$ microseconds. Finally it should be noted that the processes received a time
+slice of 12 ms. That's three timer interrupts, 4 ms, worth of time.
 
 % ----------------------------------------------------------------
 \end{document}
