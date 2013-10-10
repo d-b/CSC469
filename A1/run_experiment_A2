@@ -8,6 +8,7 @@
 # Experiment settings
 EXPERIMENT_SAMPLES   = 50
 EXPERIMENT_THRESHOLD = 25000
+EXPERIMENT_MAX_CTX   = 0.25
 
 # Python imports
 import os
@@ -100,10 +101,11 @@ def analyze(data):
             except: break
             if(other['start'] < sample['end']): continue
             if(not other['active']): break
-            start = sample['end']
-            duration = other['start'] - sample['end']
+            start = sample['end']*factor
+            duration = (other['start'] - sample['end'])*factor
+            if(duration > EXPERIMENT_MAX_CTX): continue
             print('Context switch at: {:5f} ms (Duration: {:5f} ms)'.format(
-                start*factor, duration*factor))
+                start, duration))
             break
 
 def generate_plot(data):
