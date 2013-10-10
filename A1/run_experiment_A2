@@ -7,7 +7,7 @@
 
 # Experiment settings
 EXPERIMENT_SAMPLES   = 100
-EXPERIMENT_THRESHOLD = 10000
+EXPERIMENT_THRESHOLD = 50000
 
 # Python imports
 import os
@@ -37,6 +37,21 @@ def build():
         if(not os.path.isfile(APP_PATH)):
             raise Exception('build failed')
 
+def reconcile(data1, data2):
+    # Find difference in reference value
+    first, second = (data1, data2) if(data1['reference'] < data2['reference']) else (data2, data1)
+    difference = second['reference'] - first['reference']
+    # Eliminate samples that occur before the second process starts
+    first['samples'] = [{'start': x['start'] - difference, 'end': x['end']}
+                        for x in first['samples'] if x['start'] - difference >= 0]
+    # Set references to be the same now that the sets have been reconciled
+    first['reference'] = second['reference']
+    # Find out which process ends first
+    shorter, longer = (data1, data2) if(data1['samples'][-1]['end']
+                                      < data2['samples'][-1]['end']) else (data2, data1)
+    # Eliminate extraneous samples from longer process
+    longer['samples'] = [x for x in longer['samples'] if x['end'] <= shorter['samples'][-1]['end']]
+
 def run_experiment(samples, threshold):
     outputs = [DATA1_PATH, DATA2_PATH]
     arguments = ['-n {} -t {} -o {}'.format(
@@ -47,6 +62,9 @@ def run_experiment(samples, threshold):
     return [json.load(open(o)) for o in outputs]
 
 def generate_plot(data):
+    # Reconcile data sets
+    reconcile(data[0], data[1])
+
     # Start gnuplot process
     process = subprocess.Popen(['gnuplot'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
@@ -54,7 +72,7 @@ def generate_plot(data):
     code = """# Part1 plot
 set output "{}"
 set term postscript eps 10
-set title "Process 1 & 2 - Activity"
+set title "Process 1 & 2"
 set xlabel "Time (ms)"
 set key below
 set border 3
@@ -84,8 +102,9 @@ set size 1.15, 0.5
         active = {'start': start, 'end': start}
         for i, inactive in enumerate(samples):
             active['end'] = inactive['start']
-            for j, sample, color in [(0, active, colors[index][0]), (1, inactive, colors[index][1])]:
-                objnum = (index*len(samples)) + (i*2 + j + 1)
+            for j, sample, color in [(0, active, colors[index][0]),
+                                     (1, inactive, colors[index][1])]:
+                objnum = (index*len(samples)*2) + (i*2 + j + 1)
                 code = 'set object {} rect from {}, {} to {}, {}, 2 fc rgb "{}" fs solid\n'.format(
                     objnum,
                     sample['start'], top + BAR_BOTTOM,
@@ -94,15 +113,10 @@ set size 1.15, 0.5
                 process.stdin.write(code.encode('utf8'))
             active['start'] = inactive['end']
 
-        # Render the plot
-        # code = ('plot [0:{}] [0:{}] 0 lt 1 lc rgb "blue" title "Active", ' + \
-        #         '0 lt 1 lc rgb "red" title "Inactive"\n').format(max_end, PLOT_HEIGHT)
-        # process.stdin.write(code.encode('utf8'))
-
     # Plot both processes
     plot(data[0], 0, BAR_HEIGHT)
     plot(data[1], 1, 0)
-    code = ('plot [0:{}] [0:{}] ' +
+    code = ('plot [0:{}] [0:{}]' +
             '0 lt 1 lc rgb "blue" title "P1 - Active", ' +
             '0 lt 1 lc rgb "red" title "P1 - Inactive", ' +
             '0 lt 1 lc rgb "royalblue" title "P2 - Active", ' +
