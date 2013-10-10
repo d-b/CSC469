@@ -99,42 +99,39 @@ def present():
 
 def main(arguments):
     ''' main program '''
-    # Build project if not yet built
-    build()
-
     # Set defaults
     experiment_samples   = EXPERIMENT_SAMPLES
     experiment_threshold = EXPERIMENT_THRESHOLD
 
     # Parse arguments
-    def usage():
+    def abort(message = None):
+        from sys import exit
+        if(message): print(message)
         print('Usage: {} [-n <samples>] [-t <threshold>]'.format(arguments[0]))
+        exit(-1)
     try:
         opts, args = getopt.getopt(arguments[1:], "n:t:", ["samples=", "threshold="])
     except getopt.GetoptError as err:
-        print(str(err))
-        usage()
-        return
+        abort(str(err))
     for o, a in opts:
         if   o in ("-n", '--samples'):
             try: experiment_samples = int(a)
-            except:
-                print('Invalid value for samples!')
-                usage()
-                return
+            except: abort('The number of samples should be a positive integer.')
+            if(experiment_samples <= 0):
+                abort('The number of samples must be an integer value greater than zero.')
         elif o in ("-t", "--threshold"):
             try: experiment_threshold = int(a)
-            except:
-                print('Invalid value for threshold!')
-                usage()
-                return
-        else:
-            usage()
-            return
+            except: abort('The threshold value should be a positive integer.')
+            if(experiment_threshold <= 0):
+                abort('The threshold value must be an integer value greater than zero.')
+        else: abort()
 
     # Sanity check on samples
     if(not experiment_samples):
         return
+
+    # Build project if not yet built
+    build()
 
     # Collect some data
     data = run_experiment(
