@@ -73,6 +73,7 @@ int main(int argc, char* argv[]) {
 
     // Perform the experiment
     std::vector<period_t> samples;
+    u_int64_t reference = TSC::now();
     u_int64_t start = inactive_periods(samplecount, threshold, samples);
 
     // Get the clockrate
@@ -109,7 +110,8 @@ int main(int argc, char* argv[]) {
     if(!outputpath.empty()) {
         // Write header
         std::ofstream stream(outputpath);
-        stream << "{\"start\": " << start << "," << std::endl
+        stream << "{\"reference\": " << reference << "," << std::endl
+               << " \"start\": " << start << "," << std::endl
                << " \"threshold\": " << threshold << "," << std::endl
                << " \"frequency\": " << clockrate << "," << std::endl
                << " \"samples\": [" << std::endl;

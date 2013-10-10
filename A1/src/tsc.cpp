@@ -18,6 +18,17 @@ inline void access_counter(unsigned int* hi, unsigned int* lo)
 }
 
 /*
+ * TSC::now
+ *
+ * Get the current system cycle count
+ */
+TSC::cycles TSC::now() {
+    unsigned int hi, lo;
+    access_counter(&hi, &lo);
+    return ((u_int64_t)hi << 32) | lo;
+}
+
+/*
  * TSC::start
  *
  * Start the timestamp counter

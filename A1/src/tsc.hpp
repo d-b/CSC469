@@ -14,6 +14,7 @@ private:
     cycles initial;
 
 public:
+    static cycles now();
     void start();
     cycles count();
 };
