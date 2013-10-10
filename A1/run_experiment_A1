@@ -11,6 +11,7 @@ EXPERIMENT_THRESHOLD = 2500
 
 # Python imports
 import os
+import getopt
 import json
 import subprocess
 
@@ -101,10 +102,44 @@ def main(arguments):
     # Build project if not yet built
     build()
 
+    # Set defaults
+    experiment_samples   = EXPERIMENT_SAMPLES
+    experiment_threshold = EXPERIMENT_THRESHOLD
+
+    # Parse arguments
+    def usage():
+        print('Usage: {} [-n <samples>] [-t <threshold>]'.format(arguments[0]))
+    try:
+        opts, args = getopt.getopt(arguments[1:], "n:t:", ["samples=", "threshold="])
+    except getopt.GetoptError as err:
+        print(str(err))
+        usage()
+        return
+    for o, a in opts:
+        if   o in ("-n", '--samples'):
+            try: experiment_samples = int(a)
+            except:
+                print('Invalid value for samples!')
+                usage()
+                return
+        elif o in ("-t", "--threshold"):
+            try: experiment_threshold = int(a)
+            except:
+                print('Invalid value for threshold!')
+                usage()
+                return
+        else:
+            usage()
+            return
+
+    # Sanity check on samples
+    if(not experiment_samples):
+        return
+
     # Collect some data
     data = run_experiment(
-        EXPERIMENT_SAMPLES,
-        EXPERIMENT_THRESHOLD)
+        experiment_samples,
+        experiment_threshold)
     generate_plot(data)
 
     # Present the results
