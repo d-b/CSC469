@@ -69,16 +69,16 @@
 
 \section{Tracking process activity}
 \subsection{Hypothesis}
-The goal of the experiment was to investigate the activity of a single active process running on a
-modern Linux 3.2 system. In particular we were interested in discovering how long a process is
-active on the system before it is disrupted by a timer interrupt. Furthermore, we wanted to know how
-long it takes for the operating system to service the timer interrupt before returning control to
-the single active process.
+The goal of the experiment was to investigate the activity of a single ready process running on a
+Linux 3.2 system. In particular we were interested in discovering how long a process is active on
+the system before it is disrupted by a timer interrupt. Furthermore, we wanted to know how long it
+takes for the operating system to service the timer interrupt before returning control to the single
+ready process.
 
 Our expectation was that the timer interrupt would be very inexpensive to service. Since no context
-switch is occurring, the operating system can simply reschedule the already active process and
-continue its operation. Therefore we expected the process would receive almost all of the CPU time
-with short consistent interruptions determined by the frequency of the timer interrupt.
+switch is occurring, the operating system can simply reschedule the ready process and continue its
+operation. Therefore we expected the process would receive almost all of the CPU time with short
+consistent interruptions determined by the frequency of the timer interrupt.
 
 \subsection{Hardware}
 The experiment was run on a CDF lab computer with the specifications listed in figure
@@ -103,7 +103,7 @@ The experiment was run on a CDF lab computer with the specifications listed in f
 \end{figure}
 
 \subsection{Data}
-The plot in figure \ref{fig:plot} based on 50 gathered samples of active \& inactive periods. We
+The plot in figure \ref{fig:plot} is based on 50 gathered samples of active \& inactive periods. We
 considered a process to be inactive if at least 2500 CPU cycles occurred outside of the process. In
 other words the CPU cycle threshold for the experiment was 2500.
 
@@ -147,7 +147,7 @@ The following is a table with the first 15 samples of the experiment
 \subsection{Observations}
 From the data we can safely assume that the time slice our single process is receiving before the
 timer interrupt fires is 4 milliseconds long. As for the time it takes to service a timer interrupt,
-it seems to vary. Perhaps the operating system is performing other maintenance operations during the
+it seems to vary. Perhaps the operating system is performing maintenance operations during the
 interrupt. However, if we exclude some of the outliers like sample 8 in
 \hyperref[fig:samples]{\textbf{figure \ref*{fig:samples}}} we come up with approximately $2.4$
 microseconds for a timer interrupt using all 50 samples.
