@@ -40,15 +40,21 @@ def build():
 def reconcile(data1, data2):
     # Find first and second process
     first, second = (data1, data2) if(data1['start'] < data2['start']) else (data2, data1)
-    start = first['start']
+    # Eliminate samples that occur before the second process starts
+    first['samples'] = [x for x in first['samples'] if x['start'] >= second['samples'][0]['start']]
+    try: first['start'] = first['samples'][0]['start']
+    except: first['start'] = second['samples'][0]['start']
+    # Find first and second process
+    first, second = (data1, data2) if(data1['start'] < data2['start']) else (data2, data1)
     # Normalize data
+    start = first['start']
     for dat in [data1, data2]:
         dat['start'] -= start
         for sample in dat['samples']:
             sample['start'] -= start
             sample['end'] -= start
-    # Eliminate samples that occur before the second process starts
-    first['samples'] = [x for x in first['samples'] if x['start'] >= second['samples'][0]['start']]
+    # Bail out if there is nothing left in one of the lists
+    if(not first['samples'] or not second['samples']): return
     # Find out which process ends first
     shorter, longer = (data1, data2) if(data1['samples'][-1]['end']
                                       < data2['samples'][-1]['end']) else (data2, data1)
