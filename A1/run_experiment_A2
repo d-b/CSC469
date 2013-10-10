@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+#
+# CSC469 - Performance Evaluation
+#
+# Daniel Bloemendal <d.bloemendal@gmail.com>
+#
+
+# Experiment settings
+EXPERIMENT_SAMPLES   = 50
+EXPERIMENT_THRESHOLD = 1000000
+
+# Python imports
+import os
+import getopt
+import json
+import subprocess
+
+# Get paths
+SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
+BIN_PATH    = os.path.join(SCRIPT_PATH, 'bin')
+SETUP_PATH  = os.path.join(SCRIPT_PATH, 'setup')
+PRESNT_PATH = os.path.join(SCRIPT_PATH, 'present2')
+DOC_PATH    = os.path.join(SCRIPT_PATH, 'doc')
+DATA1_PATH  = os.path.join(DOC_PATH, 'part2.1.json')
+DATA2_PATH  = os.path.join(DOC_PATH, 'part2.2.json')
+PLOT_PATH   = os.path.join(DOC_PATH, 'part2.eps')
+APP_PATH    = os.path.join(BIN_PATH, 'perftest')
+
+# Plotting settings
+BAR_BOTTOM  = 0.35
+BAR_HEIGHT  = 1.5
+PLOT_HEIGHT = 3
+
+def build():
+    if(not os.path.isfile(APP_PATH)):
+        os.system('bash -c "{}"'.format(SETUP_PATH))
+        if(not os.path.isfile(APP_PATH)):
+            raise Exception('build failed')
+
+def run_experiment(samples, threshold):
+    outputs = [DATA1_PATH, DATA2_PATH]
+    arguments = ['-n {} -t {} -o {}'.format(
+        samples, threshold, outputs[i]).split() for i in range(2)]
+    instances = [subprocess.Popen([APP_PATH] + arguments[i],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE) for i in range(2)]
+    for x in instances: x.wait()
+    return [json.load(open(o)) for o in outputs]
+
+def generate_plot(data):
+    # Start gnuplot process
+    process = subprocess.Popen(['gnuplot'], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+    # Write header
+    code = """# Part1 plot
+set output "{}"
+set term postscript eps 10
+set multiplot layout 2, 1
+set xlabel "Time (ms)"
+set key below
+set border 3
+set xtics nomirror
+set noytics
+""".format(PLOT_PATH)
+    process.stdin.write(code.encode('utf8'))
+
+    # Compute plot width
+    factor = (1/data[0]['frequency'])*1e+3
+    max_end = max([x['end'] for x in (data[0]['samples'] + data[1]['samples'])])
+    max_end *= factor
+
+    def plot(data):
+        # Get start
+        start = data['start']*factor
+
+        # Scale the samples
+        samples = [{'start': sample['start']*factor,
+                    'end'  : sample['end'  ]*factor} for sample in data['samples']]
+
+        # Write the samples
+        active = {'start': start, 'end': start}
+        for i, inactive in enumerate(samples):
+            active['end'] = inactive['start']
+            for j, sample, color in [(0, active, 'blue'), (1, inactive, 'red')]:
+                code = 'set object {} rect from {}, {} to {}, {}, 2 fc rgb "{}" fs solid\n'.format(
+                    i*2 + j + 1,
+                    sample['start'], BAR_BOTTOM,
+                    sample['end'], BAR_BOTTOM + BAR_HEIGHT,
+                    color)
+                process.stdin.write(code.encode('utf8'))
+            active['start'] = inactive['end']
+
+        # Render the plot
+        code = ('plot [0:{}] [0:{}] 0 lt 1 lc rgb "blue" title "Active", ' + \
+                '0 lt 1 lc rgb "red" title "Inactive"\n').format(max_end, PLOT_HEIGHT)
+        process.stdin.write(code.encode('utf8'))
+
+    # Plot both processes
+    code = """set size 1.15, 0.5
+set title "Process 1 - Activity
+"""
+    process.stdin.write(code.encode('utf8'))
+    plot(data[0])
+    code = """set size 1.15, 0.5
+set title "Process 2 - Activity
+"""
+    process.stdin.write(code.encode('utf8'))
+    plot(data[1])
+
+    # Cleanup
+    process.stdin.close()
+    process.wait()
+
+def present():
+    os.system('bash -c "{}"'.format(PRESNT_PATH))
+
+def main(arguments):
+    ''' main program '''
+    # Set defaults
+    experiment_samples   = EXPERIMENT_SAMPLES
+    experiment_threshold = EXPERIMENT_THRESHOLD
+
+    # Parse arguments
+    def abort(message = None):
+        from sys import exit
+        if(message): print(message)
+        print('Usage: {} [-n <samples>] [-t <threshold>]'.format(arguments[0]))
+        exit(-1)
+    try:
+        opts, args = getopt.getopt(arguments[1:], "n:t:", ["samples=", "threshold="])
+    except getopt.GetoptError as err:
+        abort(str(err))
+    for o, a in opts:
+        if   o in ("-n", '--samples'):
+            try: experiment_samples = int(a)
+            except: abort('The number of samples should be a positive integer.')
+            if(experiment_samples <= 0):
+                abort('The number of samples must be an integer value greater than zero.')
+        elif o in ("-t", "--threshold"):
+            try: experiment_threshold = int(a)
+            except: abort('The threshold value should be a positive integer.')
+            if(experiment_threshold <= 0):
+                abort('The threshold value must be an integer value greater than zero.')
+        else: abort()
+
+    # Sanity check on samples
+    if(not experiment_samples):
+        return
+
+    # Build project if not yet built
+    build()
+
+    # Collect some data
+    data = run_experiment(
+        experiment_samples,
+        experiment_threshold)
+    generate_plot(data)
+
+    # Present the results
+    present()
+
+# Entry point
+if __name__ == '__main__':
+    from sys import argv
+    main(argv)

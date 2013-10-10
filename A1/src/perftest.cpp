@@ -8,6 +8,8 @@
 
 // System includes
 #include <unistd.h>
+#include <sched.h>
+#include <stdio.h>
 #include <iostream>
 #include <fstream>
 #include <iostream>
@@ -15,7 +17,7 @@
 
 void usage(const char* application) {
     std::cout << "Usage: " << application
-              << " [-n <samples>] [-t <threshold>] [-s silent] [-o <output file>]" << std::endl;
+              << " [-n <samples>] [-t <threshold>] [-a <affinity mask>] [-s silent] [-o <output file>]" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
@@ -27,10 +29,11 @@ int main(int argc, char* argv[]) {
     u_int64_t threshold = 10000;
     bool silent = false;
     std::string outputpath;
+    unsigned int affinitymask = 1;
 
     // Process arguments
     int option;
-    while ((option = getopt (argc, argv, "n:t:so:")) != -1)
+    while ((option = getopt (argc, argv, "n:t:a:so:")) != -1)
         switch (option) {
             case 'n':
             samplecount = atoi(optarg);
@@ -39,6 +42,10 @@ int main(int argc, char* argv[]) {
             case 't':
             threshold = atoi(optarg);
             break;
+
+            case 'a':
+            affinitymask = atoi(optarg);
+            break;            
 
             case 's':
             silent = true;
@@ -52,6 +59,17 @@ int main(int argc, char* argv[]) {
                 usage(argv[0]);
                 return -1;
         }
+
+    // Set processor affinity
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    for(int i = 0; i < sizeof(affinitymask)*8; i++)
+        if(affinitymask >> i & 1)
+            CPU_SET(i, &cpuset);
+    if(sched_setaffinity(0, sizeof(cpuset), &cpuset) == -1) {
+        perror("sched_setaffinity");
+        return -1;
+    }
 
     // Perform the experiment
     std::vector<period_t> samples;
