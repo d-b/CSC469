@@ -6,8 +6,8 @@
 #
 
 # Experiment settings
-EXPERIMENT_SAMPLES   = 50
-EXPERIMENT_THRESHOLD = 1000000
+EXPERIMENT_SAMPLES   = 100
+EXPERIMENT_THRESHOLD = 10000
 
 # Python imports
 import os
@@ -29,7 +29,7 @@ APP_PATH    = os.path.join(BIN_PATH, 'perftest')
 # Plotting settings
 BAR_BOTTOM  = 0.35
 BAR_HEIGHT  = 1.5
-PLOT_HEIGHT = 3
+PLOT_HEIGHT = 4.5
 
 def build():
     if(not os.path.isfile(APP_PATH)):
@@ -54,12 +54,13 @@ def generate_plot(data):
     code = """# Part1 plot
 set output "{}"
 set term postscript eps 10
-set multiplot layout 2, 1
+set title "Process 1 & 2 - Activity"
 set xlabel "Time (ms)"
 set key below
 set border 3
 set xtics nomirror
 set noytics
+set size 1.15, 0.5
 """.format(PLOT_PATH)
     process.stdin.write(code.encode('utf8'))
 
@@ -68,7 +69,10 @@ set noytics
     max_end = max([x['end'] for x in (data[0]['samples'] + data[1]['samples'])])
     max_end *= factor
 
-    def plot(data):
+    def plot(data, index, top):
+        # Colors
+        colors = [['blue', 'red'], ['royalblue', 'orange']]
+
         # Get start
         start = data['start']*factor
 
@@ -80,31 +84,30 @@ set noytics
         active = {'start': start, 'end': start}
         for i, inactive in enumerate(samples):
             active['end'] = inactive['start']
-            for j, sample, color in [(0, active, 'blue'), (1, inactive, 'red')]:
+            for j, sample, color in [(0, active, colors[index][0]), (1, inactive, colors[index][1])]:
+                objnum = (index*len(samples)) + (i*2 + j + 1)
                 code = 'set object {} rect from {}, {} to {}, {}, 2 fc rgb "{}" fs solid\n'.format(
-                    i*2 + j + 1,
-                    sample['start'], BAR_BOTTOM,
-                    sample['end'], BAR_BOTTOM + BAR_HEIGHT,
+                    objnum,
+                    sample['start'], top + BAR_BOTTOM,
+                    sample['end'], top + BAR_BOTTOM + BAR_HEIGHT,
                     color)
                 process.stdin.write(code.encode('utf8'))
             active['start'] = inactive['end']
 
         # Render the plot
-        code = ('plot [0:{}] [0:{}] 0 lt 1 lc rgb "blue" title "Active", ' + \
-                '0 lt 1 lc rgb "red" title "Inactive"\n').format(max_end, PLOT_HEIGHT)
-        process.stdin.write(code.encode('utf8'))
+        # code = ('plot [0:{}] [0:{}] 0 lt 1 lc rgb "blue" title "Active", ' + \
+        #         '0 lt 1 lc rgb "red" title "Inactive"\n').format(max_end, PLOT_HEIGHT)
+        # process.stdin.write(code.encode('utf8'))
 
     # Plot both processes
-    code = """set size 1.15, 0.5
-set title "Process 1 - Activity
-"""
+    plot(data[0], 0, BAR_HEIGHT)
+    plot(data[1], 1, 0)
+    code = ('plot [0:{}] [0:{}] ' +
+            '0 lt 1 lc rgb "blue" title "P1 - Active", ' +
+            '0 lt 1 lc rgb "red" title "P1 - Inactive", ' +
+            '0 lt 1 lc rgb "royalblue" title "P2 - Active", ' +
+            '0 lt 1 lc rgb "orange" title "P2 - Inactive"\n').format(max_end, PLOT_HEIGHT)
     process.stdin.write(code.encode('utf8'))
-    plot(data[0])
-    code = """set size 1.15, 0.5
-set title "Process 2 - Activity
-"""
-    process.stdin.write(code.encode('utf8'))
-    plot(data[1])
 
     # Cleanup
     process.stdin.close()
