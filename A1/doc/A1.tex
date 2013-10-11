@@ -160,7 +160,7 @@ other device.
 
 \subsection{Conclusions}
 It appears that our hypothesis is correct. The active process received most of the CPU time during
-the experiment and timer interrupts were not expensive at all, taking only $2.4$ microseconds to
+the experiment and timer interrupts were not too expensive, taking only $2.4$ microseconds to
 service on average. \\
 
 \newpage
@@ -208,7 +208,7 @@ active period in \textbf{process 1} and the beginning of an active period direct
 
 The context switch seems to last around $1.8$ microseconds on average, and in some cases lasts
 a little more than $3$ microseconds. Finally it should be noted that the processes received a time
-slice of 12 ms. That's three timer interrupts, 4 ms, worth of time.
+slice of 12 ms. That's three timer interrupts, 4 ms each, worth of time.
 
 % ----------------------------------------------------------------
 \end{document}
