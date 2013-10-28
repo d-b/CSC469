@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/csc469-2013-09/Group14/!svn/ver/13/a2/benchmarks/cache-thrash
+END
+runtests.pl
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/csc469-2013-09/Group14/!svn/ver/13/a2/benchmarks/cache-thrash/runtests.pl
+END
+cache-thrash.c
+K 25
+svn:wc:ra_dav:version-url
+V 81
+/svn/csc469-2013-09/Group14/!svn/ver/13/a2/benchmarks/cache-thrash/cache-thrash.c
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/svn/csc469-2013-09/Group14/!svn/ver/13/a2/benchmarks/cache-thrash/Makefile
+END
+graphtests.pl
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/svn/csc469-2013-09/Group14/!svn/ver/13/a2/benchmarks/cache-thrash/graphtests.pl
+END
