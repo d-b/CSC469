@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/svn/csc469-2013-09/Group14/!svn/ver/13/a2/benchmarks/larson
+END
+larson.c
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/csc469-2013-09/Group14/!svn/ver/13/a2/benchmarks/larson/larson.c
+END
+runtests.pl
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/svn/csc469-2013-09/Group14/!svn/ver/13/a2/benchmarks/larson/runtests.pl
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/csc469-2013-09/Group14/!svn/ver/13/a2/benchmarks/larson/Makefile
+END
+graphtests.pl
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/svn/csc469-2013-09/Group14/!svn/ver/13/a2/benchmarks/larson/graphtests.pl
+END
