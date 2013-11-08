@@ -92,26 +92,30 @@ int mm_init (void)
 
 
   /* First word of space is a pointer to the start of the freelist */
-  /* Next comes a "magic" prolog block of size 8 that is always allocated */
+  /* Next comes a "magic" prolog block of size 2*sizeof(int) that is 
+   * always allocated 
+   */
   /* Last word of space is a "magic" epilog block that is always allocated */
-  /* total wasted space = 4 words */
+  /* total wasted space = 1 pointer + 3 ints */
 
 
   /* 1. Set up the free block */
-  freeblk = (free_hdr_t *)(dseg_lo+3*sizeof(void *));
-  freeblk->size = size - 4*sizeof(size_t);
+  size_t heap_metadata_size = (sizeof(void *) + 2*sizeof(int) + 7)/8 * 8;
+  freeblk = (free_hdr_t *)(dseg_lo+heap_metadata_size);
+  freeblk->size = size - sizeof(void *) - 3*sizeof(int);
   freeblk->next = freeblk->prev = NULL;
 
-  ftr = (int *)(dseg_lo + size - 8);
+  ftr = (int *)((void *)freeblk + freeblk->size - sizeof(int));
   *ftr = freeblk->size;
   
   /* 2. Set up the prolog */
   *freelist = freeblk;
-  *(int *)(dseg_lo + 4) = 9; /* size = 8, allocated = 1 */
-  *(int *)(dseg_lo + 8) = 9; 
+  /* size = 2*sizeof(int), allocated = 1 */
+  *(int *)(dseg_lo + sizeof(void *)) = 2*sizeof(int) | 1; 
+  *(int *)(dseg_lo + sizeof(void *) + sizeof(int)) = 2*sizeof(int) | 1; 
 
   /* 3. Set up the epilog */
-  *(int *)(dseg_lo + size - 4) = 1; /* size 0, allocated = 1 */
+  *(int *)(dseg_lo + size - sizeof(int)) = 1; /* size 0, allocated = 1 */
 
 
 
@@ -123,12 +127,12 @@ void *expand_heap(size_t amount)
   void *new_space = mem_sbrk(amount);
 
   if(new_space == NULL) {
-    fprintf(stderr,"Unable to grow heap by %d\n",amount);
+    fprintf(stderr,"Unable to grow heap by %zu\n",amount);
     exit(1);
   }
 
   /* "consume" previous epilog block into the new free block */
-  free_hdr_t *new_free = (free_hdr_t *)(new_space - 4);
+  free_hdr_t *new_free = (free_hdr_t *)(new_space - sizeof(int));
   assert (new_free->size = 1);
 
   int *ftr;
@@ -138,7 +142,7 @@ void *expand_heap(size_t amount)
   if(!(*ftr & 1)) {
     free_hdr_t *prev = (free_hdr_t *)((void*)new_free - *ftr);
     prev->size += amount;
-    *(int *)((void *)prev + prev->size - 4) = prev->size;
+    *(int *)((void *)prev + prev->size - sizeof(int)) = prev->size;
     new_free = prev;
   } else {
     /* initialize the new free block and link it at the head of the list */
@@ -149,14 +153,14 @@ void *expand_heap(size_t amount)
       new_free->next->prev = new_free;
     *(free_hdr_t **)dseg_lo = new_free;
 
-    ftr = (int *)((char *)new_free + amount - 4);
+    ftr = (int *)((char *)new_free + amount - sizeof(int));
     *ftr = amount;
   }
 
   /* write the new epilog block */
-  *(int *)(new_space + amount - 4) = 1;
+  *(int *)(new_space + amount - sizeof(int)) = 1;
 
-  assert((int)(new_space + amount - 1) == (int)dseg_hi);
+  assert((ptrdiff_t)(new_space + amount - 1) == (ptrdiff_t)dseg_hi);
 
   return (void *)new_free;
 }
@@ -174,10 +178,16 @@ void *mm_malloc (size_t size)
   /* Take size, add on header and footer overhead and round up
    * to multiple of 8
    */
-  size += 8;
-  size = (size + 7)/8 * 8;
+  size += 2*sizeof(int); /* For hdr and ftr when allocated */
 
-  assert(size >= 16);
+  /* need to be at least large enough to hold free header and footer
+   * so we can put the block back on the free list later.
+   */
+  if (size < (sizeof(free_hdr_t) + sizeof(int))) 
+    size = sizeof(free_hdr_t) + sizeof(int);
+
+  /* And now make sure size is a multiple of 8 */
+  size = (size + 7) / 8 * 8;
 
   /* Scan free list looking for block that is large enough */
   /* First fit */
@@ -193,11 +203,11 @@ void *mm_malloc (size_t size)
 
   /* found a block that's big enough */
   int extra = blk->size - size;
-  ftr = (int *)((void *)blk + blk->size - 4);
+  ftr = (int *)((void *)blk + blk->size - sizeof(int));
 
   assert(*ftr == blk->size);
 
-  if(extra < 16) {
+  if(extra < sizeof(free_hdr_t)) {
 
     /* leftover piece isn't large enough, allocate whole thing */
     if(blk->prev) {
@@ -216,13 +226,13 @@ void *mm_malloc (size_t size)
   } else {
     /* Allocate the "back" of the block, leave initial portion on list */
     free_hdr_t *old = blk;
-    ftr = (int *)((char *)blk + extra - 4);
+    ftr = (int *)((char *)blk + extra - sizeof(int));
     blk = (free_hdr_t *)(ftr + 1);
     old->size = extra;
     *ftr = extra;
     assert(*ftr == old->size);
     blk->size = size | 1; /* set allocated bit in header */
-    ftr = (int *)((char *)blk + size - 4);
+    ftr = (int *)((char *)blk + size - sizeof(int));
     *ftr = size | 1;  /* set allocated bit in footer */
     assert(*ftr == blk->size);
   }
@@ -238,12 +248,13 @@ void *mm_malloc (size_t size)
 void mm_free (void *ptr)
 {
   pthread_mutex_lock(&malloc_lock);
-  free_hdr_t *new_free = (free_hdr_t *)(ptr - 4);
+  free_hdr_t *new_free = (free_hdr_t *)(ptr - sizeof(int));
   free_hdr_t **freelist = (free_hdr_t **)dseg_lo;
   new_free->size &= ~0x7;  /* clear allocated bit in header */
-  int prev_alloc = *(int *)((void *)new_free - 4) & 0x1;
+  int prev_alloc = *(int *)((void *)new_free - sizeof(int)) & 0x1;
   int next_alloc = *(int *)((void *)new_free + new_free->size) & 0x1;
-  int *ftr;
+  int *ftr;  /* Used only in assert() for debugging coalescing code. */
+  (void)ftr; /* Keep gcc quiet in non-debug compilations */
 
   /* Check for coalescing. */
 
@@ -252,9 +263,9 @@ void mm_free (void *ptr)
    */
   if( !next_alloc ) {
     free_hdr_t *next_blk = (free_hdr_t *)((void *)new_free + new_free->size);
-    ftr = (int *)((void *)next_blk + next_blk->size - 4);
+    ftr = (int *)((void *)next_blk + next_blk->size - sizeof(int));
     new_free->size += next_blk->size;
-    *(int *)((void *)new_free + new_free->size - 4) = new_free->size;
+    *(int *)((void *)new_free + new_free->size - sizeof(int)) = new_free->size;
     if(next_blk->prev) {
       next_blk->prev->next = next_blk->next;
     } else {
@@ -268,13 +279,13 @@ void mm_free (void *ptr)
 
   /* If the previous block is free, just increase its size */
   if( !prev_alloc ) {
-    int prev_size = *(int *)((void *)new_free - 4);
+    int prev_size = *(int *)((void *)new_free - sizeof(int));
     free_hdr_t *prev_blk = (free_hdr_t *)((void *)new_free - prev_size);
     prev_blk->size += new_free->size;
-    *(int *)((void *)prev_blk + prev_blk->size - 4) = prev_blk->size;
+    *(int *)((void *)prev_blk + prev_blk->size - sizeof(int)) = prev_blk->size;
 
   } else {
-    *(int *)((void *)new_free + new_free->size - 4) = new_free->size;
+    *(int *)((void *)new_free + new_free->size - sizeof(int)) = new_free->size;
     /* put the new block on the head of the free list */
     new_free->next = *freelist;
     new_free->prev = NULL;
