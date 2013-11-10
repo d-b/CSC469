@@ -121,6 +121,12 @@ static blockptr_t superblock_block_allocate(superblock_t* sb) {
     return (blk != BLOCK_INVALID) ? blk : sb->next_block++;
 }
 
+static void superblock_block_free(superblock_t* sb, blockptr_t blk) {
+    // Add block to free list and adjust stats
+    assert(sb->block_used > 0);
+    superblock_freelist_push(sb, blk);
+    sb->block_used -= 1;
+}
 
 void *mm_malloc(size_t sz)
 {
