@@ -6,6 +6,8 @@ CC_DBG_FLAGS = -c -Wall -fmessage-length=0 -pipe -g -finline-limit=65000 -fkeep-
 
 all: libkheap libcmumalloc libmmlibc libsubmit
 
+debug: libkheap_dbg libcmumalloc_dbg libsubmit_dbg libmmlibc
+
 alloclibs:
 	mkdir alloclibs
 

@@ -1,2 +1,2 @@
 #!/bin/bash
-TOPDIR=`pwd` make
+TOPDIR=`pwd` make debug

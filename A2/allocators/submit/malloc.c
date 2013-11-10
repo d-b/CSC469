@@ -60,11 +60,35 @@ typedef struct {
 } context_t;
 
 //
+// Utility functions
+//
+
+inline size_t util_pagealigned(size_t size) {
+    size_t padding = size % mem_pagesize();
+    if(padding > 0) padding = mem_pagesize() - padding;
+    return size + padding;
+}
+
+inline int util_sizeclass(size_t size) {
+    // Compute size class
+    size_t sizeunit = 1; size_t x = size;
+    int sizecls = 0; while(x >= ALLOC_HOARD_SIZE_CLASS_BASE) {
+        x        /= ALLOC_HOARD_SIZE_CLASS_BASE;
+        sizeunit *= ALLOC_HOARD_SIZE_CLASS_BASE;
+        sizecls  += 1;
+    }
+
+    // Check for remainder and return size class
+    if(size % sizeunit) sizecls += 1;
+    return (sizecls < ALLOC_HOARD_SIZE_CLASS_MIN) ? ALLOC_HOARD_SIZE_CLASS_MIN : sizecls;
+}
+
+//
 // Superblock functions
 //
 
 inline size_t superblock_size(void) {
-    return mem_pagesize() - sizeof(superblock_t);
+    return mem_pagesize();
 }
 
 static void superblock_init(superblock_t* sb, int size_class) {
@@ -78,7 +102,7 @@ static void superblock_init(superblock_t* sb, int size_class) {
 
     // Set initials
     sb->block_used  = 0;
-    sb->block_count = superblock_size() / sb->block_size;
+    sb->block_count = (superblock_size() - sizeof(superblock_t)) / sb->block_size;
     sb->next_block  = 0;
     sb->next_free   = BLOCK_INVALID;
     
@@ -148,9 +172,7 @@ static void heap_init(heap_t* heap) {
 
 inline static size_t context_size() {
     size_t size = sizeof(context_t) + sizeof(heap_t) * (getNumProcessors() * ALLOC_HOARD_HEAP_CPU_FACTOR - 1);
-    size_t padding = size % mem_pagesize();
-    if(padding > 0) padding = mem_pagesize() - padding;
-    return size + padding;
+    return util_pagealigned(size);
 }
 
 static void context_init(context_t* ctx) {
@@ -159,6 +181,11 @@ static void context_init(context_t* ctx) {
     int i; for(i = 0; i < ctx->heap_count; i++)
         heap_init(&ctx->heap_table[i]);
 }
+
+static heap_t* context_heap(context_t* ctx, uint32_t threadid) {
+    return &ctx->heap_table[threadid % ctx->heap_count];
+}
+
 
 //
 // Implementation
@@ -170,8 +197,21 @@ inline context_t* get_context(void) {
 
 void *mm_malloc(size_t sz)
 {
-	(void)sz; /* Avoid warning about unused variable */
-	return NULL;
+    // See if we are allocating from system
+    if(sz > superblock_size()/2)
+        return mem_sbrk(util_pagealigned(sz));
+
+    // Get context
+    context_t* ctx = get_context();
+
+    // Find current heap and lock it
+    heap_t* heap = context_heap(ctx, (uint32_t) pthread_self());
+    pthread_mutex_lock(&heap->lock);
+
+    // Unlock and return
+    pthread_mutex_unlock(&heap->lock);
+    return NULL;
+
 }
 
 void mm_free(void *ptr)
@@ -182,6 +222,9 @@ void mm_free(void *ptr)
 
 int mm_init(void)
 {
+    // See if we need to initialize the memory
+    if(dseg_hi <= dseg_lo) mem_init();
+
     // Allocate memory for the context and initialize it
     context_t* ctx = mem_sbrk(context_size());
     if(ctx == NULL) return -1;
