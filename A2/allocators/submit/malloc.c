@@ -11,6 +11,7 @@
 #include <assert.h>
 
 #include "memlib.h"
+#include "mm_thread.h"
 
 //
 // Hoard parameters
@@ -53,6 +54,7 @@ typedef struct {
 
 // Allocator context
 typedef struct {
+    void*  blocks_base;
     int    heap_count;
     heap_t heap_table[1];
 } context_t;
@@ -128,6 +130,44 @@ static void superblock_block_free(superblock_t* sb, blockptr_t blk) {
     sb->block_used -= 1;
 }
 
+//
+// Heap functions
+//
+
+static void heap_init(heap_t* heap) {
+    pthread_mutex_init(&heap->lock, NULL);
+    heap->mem_used = 0;
+    heap->mem_allocated = 0;
+    int i; for(i = 0; i < ALLOC_HOARD_FULLNESS_GROUPS; i++)
+        heap->bins[i] = NULL;
+}
+
+//
+// Context functions
+//
+
+inline static size_t context_size() {
+    size_t size = sizeof(context_t) + sizeof(heap_t) * (getNumProcessors() * ALLOC_HOARD_HEAP_CPU_FACTOR - 1);
+    size_t padding = size % mem_pagesize();
+    if(padding > 0) padding = mem_pagesize() - padding;
+    return size + padding;
+}
+
+static void context_init(context_t* ctx) {
+    ctx->blocks_base = (char*) ctx + context_size();
+    ctx->heap_count = getNumProcessors() * ALLOC_HOARD_HEAP_CPU_FACTOR;
+    int i; for(i = 0; i < ctx->heap_count; i++)
+        heap_init(&ctx->heap_table[i]);
+}
+
+//
+// Implementation
+//
+
+inline context_t* get_context(void) {
+    return (context_t*) dseg_lo;
+}
+
 void *mm_malloc(size_t sz)
 {
 	(void)sz; /* Avoid warning about unused variable */
@@ -142,5 +182,9 @@ void mm_free(void *ptr)
 
 int mm_init(void)
 {
+    // Allocate memory for the context and initialize it
+    context_t* ctx = mem_sbrk(context_size());
+    if(ctx == NULL) return -1;
+    context_init(ctx);
 	return 0;
 }
