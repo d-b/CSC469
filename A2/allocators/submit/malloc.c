@@ -90,16 +90,6 @@ inline void* superblock_block_data(superblock_t* sb, blockptr_t blk) {
     return (void*) ((char*) sb + sizeof(superblock_t) + sb->block_size * blk);
 }
 
-static blockptr_t superblock_block_allocate(superblock_t* sb) {
-    // Make sure there are free blocks
-    if(sb->block_used >= sb->block_count)
-        return BLOCK_INVALID;
-
-    // Allocate the block
-    sb->block_used += 1;
-    return sb->next_block++;
-}
-
 static void superblock_freelist_push(superblock_t* sb, blockptr_t blk) {
     // Embed a pointer to the previous block
     blockptr_t* prev_free = (blockptr_t*) superblock_block_data(sb, blk);
@@ -119,6 +109,18 @@ static blockptr_t superblock_freelist_pop(superblock_t* sb) {
     sb->next_free = *(blockptr_t*) superblock_block_data(sb, blk);
     return blk;
 }
+
+static blockptr_t superblock_block_allocate(superblock_t* sb) {
+    // See if we are filled to capacity
+    if(sb->block_used >= sb->block_count)
+        return BLOCK_INVALID;
+    sb->block_used += 1;
+
+    // Return a new or freed block
+    blockptr_t blk = superblock_freelist_pop(sb);
+    return (blk != BLOCK_INVALID) ? blk : sb->next_block++;
+}
+
 
 void *mm_malloc(size_t sz)
 {
