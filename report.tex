@@ -60,19 +60,28 @@ Instructor: & Professor Angela Demke Brown % Instructor/supervisor
 To create a scalable parallel memory allocator that is at least as fast as the standard c malloc.
 
 
-\section{Hoard}
+\section{Hoard Implementation}
 
-\indent \indent We choose to implement the Hoard Memory Allocator based on both its proven history and its utilization in modern Operating Systems. 
+\indent \indent We choose to implement the Hoard Memory Allocator based on both its proven history and its utilization in modern Operating Systems.  We use a global heap, and a CPU scaling factor which can be experimentally set to determine a number of per CPU heaps to initilize.  Threads are assigned to run on specific heaps.  The CPU scaling factor along with a more advanced hashing function help to prevent concurrent threads from being assigned to the same CPU.
+\\
+\newpage
+\noindent
+\textbf{Blowup}
+\\
+\indent  Utilizing an \textit{emptyness threshold} which can be experimentally set, we divide the Superblocks in a specific per processor heap by \textit{fullness groups}.  When a heap drops below the emptyness threshold, we transfer a superblock that is at least emptyness threshold empty.  By implementing this threshold, the same invarient that Berger used in his experiments in the original paper on Hoard holds (CITATION)
+\\
+\textbf{Fragmentation}
+\\
+\indent Inside Superblocks.  Superblocks use size classes for internal blocks which are powers of \textit{b}, and limit internal fragmentation to \textit{b} (CITATION) pp\#2. \textit{b} can be experimentally set.
+\\
+\indent Outside Superblocks.  Superblocks are not returned to the Operating System, they are \textit{recycled} for re use by any size class.
 \\
 \textbf{False Sharing}
 \\
 \indent Hoard utilizes Superblocks and multiplle heaps to avoid most active and passive false sharing. 
-\\
-\textbf{Blowup}
-\\
-\textbf{Scalability}
 
-	In order to 
+
+
 \section{Structures}
 
 \textbf{Superblock}
@@ -104,6 +113,21 @@ struct SUPERBLOCK\_T \{
 }
 \\
 \\
+\newpage
+
+\noindent \textbf{Heap}
+\\
+\texttt{struct HEAP\_T \{
+\\
+\indent    int index;
+\\
+\indent    size\_t mem\_used;
+\\
+ \indent   size\_t mem\_allocated;
+\\
+ \indent   superblock\_t\* bins[ALLOC\_HOARD\_FULLNESS\_GROUPS];
+\\
+\};}
 
 
 \section{Results}
