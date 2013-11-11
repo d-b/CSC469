@@ -406,9 +406,8 @@ static void context_free(context_t* ctx, void* ptr) {
     superblock_block_free(sb, blk);
 
     // If the superblock is mostly empty transfer it to global
-    if(sb->heap->index == 0 && sb->group == 0) {
+    if(sb->heap->index != 0 && sb->group == 0)
         superblock_transfer(sb, context_globalheap(ctx));
-    }
 }
 
 //
@@ -470,7 +469,6 @@ void *mm_malloc(size_t sz)
         heap_t* heap = context_heap(ctx, (uint32_t) pthread_self());
         void* mem = context_malloc(ctx, heap, sz);
     context_unlock(ctx);
-    //print_heap_stats(heap);
     return mem;
 }
 
