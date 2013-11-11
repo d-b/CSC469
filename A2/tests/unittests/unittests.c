@@ -25,9 +25,30 @@ int basic_check(void){
 	} 
     return 0;
 }
+
+int coherency_check(void){
+	int i = 0;
+	printf("Coherency check on 2000 bytes\n");
+	char *array = mm_malloc(500 * sizeof(int));
+	for (i=0; i < 500; i++){
+		array[i] = i;
+
+	}
+        for (i=0; i < 500; i++){
+		printf(".");
+                if (array[i] != i){
+			printf("\nFAILED\n");
+			return -1;
+		}
+
+        }
+	printf("\nPASSED\n");
+	return 0;
+}
 int main (int argc, char* argv[]) {
     mm_init();
     basic_check();
+    coherency_check();
     int i; for(i = 0; i < 4; i++) {
         mm_malloc(4096);
     } 
