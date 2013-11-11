@@ -335,9 +335,11 @@ static void* context_malloc(context_t* ctx, heap_t* heap, size_t sz) {
         pthread_mutex_unlock(&glob->lock);
     }
 
-    // Allocate the block of memory
-    blockptr_t blk = superblock_block_allocate(sb);
-    mem = superblock_block_data(sb, blk);
+    // Finally, allocate the block unless we are out of memory
+    if(sb) {
+        blockptr_t blk = superblock_block_allocate(sb);
+        mem = superblock_block_data(sb, blk);
+    }
 
     // Unlock heap and return memory
     pthread_mutex_unlock(&heap->lock);
