@@ -131,11 +131,34 @@ inline int util_sizeclass(size_t size) {
 //
 
 inline size_t superblock_footprint(void) {
-    return mem_pagesize() * 2 + sizeof(superblock_t);
+    return mem_pagesize() + sizeof(superblock_t);
 }
 
 inline size_t superblock_size(void) {
-    return mem_pagesize() * 2;
+    return mem_pagesize();
+}
+
+static void superblock_link(superblock_t* sb, heap_t* heap, int group) {
+    // Set new heap and group
+    sb->heap = heap;
+    sb->group = group;
+
+    // Perform standard link operation
+    if(sb->heap->bins[sb->group])
+        sb->heap->bins[sb->group]->prev = sb;
+    sb->next = sb->heap->bins[sb->group];
+    sb->heap->bins[sb->group] = sb;
+}
+
+static void superblock_unlink(superblock_t* sb) {
+    // See if we were the head
+    if(sb->heap->bins[sb->group] == sb)
+        sb->heap->bins[sb->group] = sb->next;
+
+    // Perform standard unlink operation
+    if(sb->prev) sb->prev->next = sb->next;
+    if(sb->next) sb->next->prev = sb->prev;
+    sb->prev = sb->next = NULL;
 }
 
 static void superblock_init(superblock_t* sb, heap_t* heap, int size_class) {
@@ -153,12 +176,11 @@ static void superblock_init(superblock_t* sb, heap_t* heap, int size_class) {
     sb->block_count = superblock_size() / sb->block_size;
     sb->next_block  = 0;
     sb->next_free   = BLOCK_INVALID;
+    sb->prev        = NULL;
+    sb->next        = NULL;
 
     // Perform link
-    sb->heap = heap;
-    sb->prev = NULL;
-    sb->next = sb->heap->bins[0];
-    sb->heap->bins[0] = sb;
+    superblock_link(sb, heap, 0);
 
     // Update heap statistics
     sb->heap->mem_allocated += sb->block_count * sb->block_size;
@@ -198,27 +220,9 @@ static int superblock_group(superblock_t* sb) {
         ALLOC_HOARD_FULLNESS_GROUPS - 1 : group;
 }
 
-static void superblock_unlink(superblock_t* sb) {
-    // See if we were the head
-    if(sb->heap->bins[sb->group] == sb)
-        sb->heap->bins[sb->group] = sb->next;
-
-    // Perform standard unlink operation
-    if(sb->prev) sb->prev->next = sb->next;
-    if(sb->next) sb->next->prev = sb->prev;
-    sb->prev = sb->next = NULL;
-}
-
 static void superblock_move(superblock_t* sb) {
-    // See if we need to move
-    int group = superblock_group(sb);
-    if(group == sb->group) return;
-
-    // Perform the move
     superblock_unlink(sb);
-    sb->group = group;
-    sb->next = sb->heap->bins[group];
-    sb->heap->bins[group] = sb;
+    superblock_link(sb, sb->heap, superblock_group(sb));
 }
 
 static void superblock_transfer(superblock_t* sb, heap_t* heap) {
@@ -235,11 +239,9 @@ static void superblock_transfer(superblock_t* sb, heap_t* heap) {
     sb->heap->mem_allocated -= allocated;
     
     // Link to new heap
-    sb->heap = heap;
-    sb->next = sb->heap->bins[sb->group];
-    sb->heap->bins[sb->group] = sb;
-    sb->heap->mem_used += used;
-    sb->heap->mem_allocated += allocated;
+    heap->mem_used += used;
+    heap->mem_allocated += allocated;
+    superblock_link(sb, heap, sb->group);
 }
 
 inline blockptr_t superblock_block_find(superblock_t* sb, void* ptr) {
@@ -277,7 +279,7 @@ static blockptr_t superblock_block_allocate(superblock_t* sb) {
         return BLOCK_INVALID;
     sb->block_used += 1;
 
-    // Update heap statistics & move
+    // Update heap statistics & move block
     sb->heap->mem_used += sb->block_size;
     superblock_move(sb);
 
@@ -468,6 +470,7 @@ void *mm_malloc(size_t sz)
         heap_t* heap = context_heap(ctx, (uint32_t) pthread_self());
         void* mem = context_malloc(ctx, heap, sz);
     context_unlock(ctx);
+    //print_heap_stats(heap);
     return mem;
 }
 
