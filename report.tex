@@ -1,0 +1,121 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% University/School Laboratory Report
+% LaTeX Template
+% Version 3.0 (4/2/13)
+%
+% This template has been downloaded from:
+% http://www.LaTeXTemplates.com
+%
+% Original author:
+% Linux and Unix Users Group at Virginia Tech Wiki 
+% (https://vtluug.org/wiki/Example_LaTeX_chem_lab_report)
+%
+% License:
+% CC BY-NC-SA 3.0 (http://creativecommons.org/licenses/by-nc-sa/3.0/)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass[11pt]{article}
+\usepackage{amssymb, amsmath}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{courier}
+\setlength\parindent{0pt} % Removes all indentation from paragraphs
+%\usepackage{times} % Uncomment to use the Times New Roman font
+
+%----------------------------------------------------------------------------------------
+%	DOCUMENT INFORMATION
+%----------------------------------------------------------------------------------------
+
+\title{Parallel Memory Allocation \\ A Scalable Solution \\ CSC469} % Title
+
+\date{\today} % Date for the report
+
+\begin{document}
+
+\maketitle % Insert the title, author and date
+
+\begin{center}
+\begin{tabular}{l r}
+Partners: & Daniel Bloemendal \\ % Partner names
+& Simon Scott \\
+Instructor: & Professor Angela Demke Brown % Instructor/supervisor
+\end{tabular}
+\end{center}
+
+% If you wish to include an abstract, uncomment the lines below
+% \begin{abstract}
+% Abstract text
+% \end{abstract}
+
+%----------------------------------------------------------------------------------------
+%	SECTION 1
+%----------------------------------------------------------------------------------------
+
+\section{Objective}
+
+To create a scalable parallel memory allocator that is at least as fast as the standard c malloc.
+
+
+\section{Methodology}
+	Hoard.
+\section{Structures}
+
+\textbf{Superblock}
+\texttt{
+\\
+struct SUPERBLOCK\_T \{
+\\
+    heap\_t* heap;
+\\
+    uint8\_t group;
+\\
+    int size\_class;
+\\
+    size\_t block\_size;
+\\
+    size\_t block\_count;
+\\
+    size\_t block\_used;
+\\
+    blockptr\_t next\_block;
+\\
+    blockptr\_t next\_free;
+\\
+    superblock\_t\* prev;
+\\
+    superblock\_t\* next;
+\\
+\} \_\_attribute\_\_((aligned(ARCH\_CACHE\_ALIGNMENT)));
+}
+\\
+\\
+
+
+\section{Results}
+\section{Discussion}
+ 
+%----------------------------------------------------------------------------------------
+%	SECTION 2
+%----------------------------------------------------------------------------------------
+
+
+%----------------------------------------------------------------------------------------
+%	BIBLIOGRAPHY
+%----------------------------------------------------------------------------------------
+\section{References}
+\bibliographystyle{unsrt}
+Berger, Emery. "Hoard: A Scalable Memory Allocator for Multithreaded Applications." UMass CS | School of Computer Science. N.p., n.d. Web. 11 Nov. 2013. <http://people.cs.umass.edu/>.
+\bibliography{sample}
+\\
+\\
+Berger, Emery. "Hoard: A Fast, Scalable, and Memory-Efficient Allocator for Shared-Memory Multiprocessors." Ftp://ftp.cs.utexas.edu. N.p., n.d. Web. <ftp://ftp.cs.utexas.edu/pub/techreports/tr99-22.pdf>.
+
+%----------------------------------------------------------------------------------------
+
+
+\end{document}
