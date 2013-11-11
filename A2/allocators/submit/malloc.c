@@ -407,7 +407,9 @@ static void context_free(context_t* ctx, void* ptr) {
 
     // If we freed a block from a local heap
     if(heap) {
+        // If the superblock is mostly empty transfer it to global
         if(sb->group == 0) superblock_transfer(sb, glob);
+        // Release local heap lock
         pthread_mutex_unlock(&heap->lock);
     }
 
@@ -474,7 +476,7 @@ void *mm_malloc(size_t sz)
     context_t* ctx = get_context();
     heap_t* heap = context_heap(ctx, (uint32_t) pthread_self());
     void* mem = context_malloc(ctx, heap, sz);
-    print_heap_stats(heap); return mem;
+    return mem;
 }
 
 void mm_free(void *ptr)
