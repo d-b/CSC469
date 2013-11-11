@@ -58,7 +58,7 @@ struct SUPERBLOCK_T {
     blockptr_t      next_free;
     superblock_t*   prev;
     superblock_t*   next;
-} __attribute__((align(ARCH_CACHE_ALIGNMENT)));
+} __attribute__((aligned(ARCH_CACHE_ALIGNMENT)));
 
 // Heap
 struct HEAP_T {
@@ -480,13 +480,11 @@ void *mm_malloc(size_t sz)
     if(sz > superblock_size()/2)
         return malloc(sz);
 
-    printf("malloc: %d\n", sz);
-
     // Find current heap and allocate memory
     context_t* ctx = get_context();
     heap_t* heap = context_heap(ctx, (uint32_t) pthread_self());
     void* mem = context_malloc(ctx, heap, sz);
-    print_heap_stats(heap); return mem;
+    return mem;
 }
 
 void mm_free(void *ptr)
