@@ -86,21 +86,18 @@ static void util_init(void) {
     pthread_mutex_init(&util_allocator_lock, NULL);
 }
 
-static void* util_allocate(size_t size) {
+inline void* util_allocate(size_t size) {
     pthread_mutex_lock(&util_allocator_lock);
     void* mem = mem_sbrk(size);
     pthread_mutex_unlock(&util_allocator_lock);
     return mem;
 }
 
-static void* util_desg_lo() {
-    pthread_mutex_lock(&util_allocator_lock);
-    void* mem = dseg_lo;
-    pthread_mutex_unlock(&util_allocator_lock);
-    return mem;
+inline void* util_desg_lo() {
+    return dseg_lo;
 }
 
-static void* util_desg_hi() {
+inline void* util_desg_hi() {
     pthread_mutex_lock(&util_allocator_lock);
     void* mem = dseg_hi;
     pthread_mutex_unlock(&util_allocator_lock);
