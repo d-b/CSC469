@@ -37,7 +37,7 @@ int coherency_check(int size){
         for (i=0; i < size; i++){
 		printf(".");
                 if (array[i] != i){
-			printf("\nFAILED\n");
+			printf("\nFAILED %d != %d\n", i, array[i]);
 			return -1;
 		}
 
