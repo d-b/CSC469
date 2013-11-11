@@ -14,6 +14,11 @@
 #include "mm_thread.h"
 
 //
+// Architecture parameters
+//
+#define ARCH_CACHE_ALIGNMENT 64
+
+//
 // Hoard parameters
 //
 #define ALLOC_HOARD_FULLNESS_GROUPS 4
@@ -53,7 +58,7 @@ struct SUPERBLOCK_T {
     blockptr_t      next_free;
     superblock_t*   prev;
     superblock_t*   next;
-};
+} __attribute__((align(ARCH_CACHE_ALIGNMENT)));
 
 // Heap
 struct HEAP_T {
@@ -126,11 +131,11 @@ inline int util_sizeclass(size_t size) {
 //
 
 inline size_t superblock_footprint(void) {
-    return mem_pagesize();
+    return mem_pagesize() * 2 + sizeof(superblock_t);
 }
 
 inline size_t superblock_size(void) {
-    return superblock_footprint() - sizeof(superblock_t);
+    return mem_pagesize() * 2;
 }
 
 static void superblock_init(superblock_t* sb, heap_t* heap, int size_class) {
@@ -148,7 +153,7 @@ static void superblock_init(superblock_t* sb, heap_t* heap, int size_class) {
     sb->block_count = superblock_size() / sb->block_size;
     sb->next_block  = 0;
     sb->next_free   = BLOCK_INVALID;
-    
+
     // Perform link
     sb->heap = heap;
     sb->prev = NULL;
@@ -187,6 +192,7 @@ static superblock_t* superblock_allocate(heap_t* heap, int size_class) {
 
 static int superblock_group(superblock_t* sb) {
     size_t group_size = sb->block_count / ALLOC_HOARD_FULLNESS_GROUPS;
+    if(!group_size) group_size = sb->block_count / 2;
     int group = sb->block_used / group_size;
     return (group >= ALLOC_HOARD_FULLNESS_GROUPS) ?
         ALLOC_HOARD_FULLNESS_GROUPS - 1 : group;
@@ -395,9 +401,11 @@ static void context_free(context_t* ctx, void* ptr) {
     // Find superblock
     superblock_t* sb = context_superblock_find(ctx, ptr);
 
-    // Acquire locks
+    // Acquire global lock
     heap_t* glob = context_globalheap(ctx);
     pthread_mutex_lock(&glob->lock);
+
+    // Find out if the superblock is from a local heap
     heap_t* heap = (glob != sb->heap) ? sb->heap : NULL;
     if(heap) pthread_mutex_lock(&heap->lock);
 
@@ -472,11 +480,13 @@ void *mm_malloc(size_t sz)
     if(sz > superblock_size()/2)
         return malloc(sz);
 
+    printf("malloc: %d\n", sz);
+
     // Find current heap and allocate memory
     context_t* ctx = get_context();
     heap_t* heap = context_heap(ctx, (uint32_t) pthread_self());
     void* mem = context_malloc(ctx, heap, sz);
-    return mem;
+    print_heap_stats(heap); return mem;
 }
 
 void mm_free(void *ptr)

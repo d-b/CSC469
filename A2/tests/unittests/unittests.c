@@ -13,8 +13,8 @@
 
 int main (int argc, char* argv[]) {
     mm_init();
-    int i; for(i = 0; i < 128; i++) {
-        mm_malloc(128);
+    int i; for(i = 0; i < 4; i++) {
+        mm_malloc(4096);
     } 
     return 0;
 }
