@@ -88,6 +88,20 @@ static void* util_allocate(size_t size) {
     return mem;
 }
 
+static void* util_desg_lo() {
+    pthread_mutex_lock(&util_allocator_lock);
+    void* mem = dseg_lo;
+    pthread_mutex_unlock(&util_allocator_lock);
+    return mem;
+}
+
+static void* util_desg_hi() {
+    pthread_mutex_lock(&util_allocator_lock);
+    void* mem = dseg_hi;
+    pthread_mutex_unlock(&util_allocator_lock);
+    return mem;
+}
+
 inline size_t util_pagealigned(size_t size) {
     size_t page_size = mem_pagesize();
     return ((size + page_size - 1)/page_size)*page_size;
@@ -159,7 +173,7 @@ static void superblock_transform(superblock_t* sb, int size_class) {
 
 static superblock_t* superblock_allocate(heap_t* heap, int size_class) {
     // Try to allocate a superblock
-    superblock_t* sb = (superblock_t*) util_allocate(superblock_size());
+    superblock_t* sb = (superblock_t*) util_allocate(sizeof(superblock_t) + superblock_size());
     if(!sb) return NULL;
 
     // Initialize the superblock and return it
@@ -364,12 +378,16 @@ static void* context_malloc(context_t* ctx, heap_t* heap, size_t sz) {
     return mem;
 }
 
+static void context_free(context_t* ctx, void* ptr) {
+
+}
+
 //
 // Global context
 //
 
 inline context_t* get_context(void) {
-    return (context_t*) dseg_lo;
+    return (context_t*) util_desg_lo();
 }
 
 //
@@ -428,9 +446,14 @@ void *mm_malloc(size_t sz)
 
 void mm_free(void *ptr)
 {
-    (void)ptr; /* Avoid warning about unused variable */
-}
+    // See if it was a system allocation
+    if(ptr < util_desg_lo() || ptr >= util_desg_hi()) {
+        free(ptr); return;
+    }
 
+    // Free the object
+    context_free(get_context(), ptr);
+}
 
 int mm_init(void)
 {
