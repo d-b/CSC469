@@ -34,10 +34,12 @@ int coherency_check(int size){
     for (i=0; i < size; i++) {
         printf(".");
         if (array[i] != i) {
+            mm_free(array);
             printf("\nFAILED %d != %d\n", i, array[i]);
             return -1;
         }
     }
+    mm_free(array);
     printf("\nPASSED\n");
     return 0;
 }
