@@ -141,6 +141,22 @@ static void superblock_init(superblock_t* sb, heap_t* heap, int size_class) {
     sb->heap->mem_allocated += sb->block_count * sb->block_size;
 }
 
+static void superblock_transform(superblock_t* sb, int size_class) {
+    // Only valid for empty superblocks
+    assert(sb->block_used == 0);
+
+    // Set size class
+    sb->size_class = size_class;
+
+    // Compute block size
+    sb->block_size = 1;
+    int i; for(i = 0; i < sb->size_class; i++)
+        sb->block_size *= ALLOC_HOARD_SIZE_CLASS_BASE;
+
+    // Set initials
+    sb->block_count = superblock_size() / sb->block_size;
+}
+
 static superblock_t* superblock_allocate(heap_t* heap, int size_class) {
     // Try to allocate a superblock
     superblock_t* sb = (superblock_t*) util_allocate(superblock_size());
@@ -259,14 +275,8 @@ static void heap_init(heap_t* heap) {
     pthread_mutex_init(&heap->lock, NULL);
     heap->mem_used = 0;
     heap->mem_allocated = 0;
-    int i; for(i = 0; i < ALLOC_HOARD_FULLNESS_GROUPS; i++) {
-        heap->index = i;
+    int i; for(i = 0; i < ALLOC_HOARD_FULLNESS_GROUPS; i++)
         heap->bins[i] = NULL;
-    }
-}
-
-static int heap_full(heap_t* heap) {
-    return heap->mem_used >= heap->mem_allocated;
 }
 
 //
@@ -281,9 +291,10 @@ inline static size_t context_size() {
 static void context_init(context_t* ctx) {
     ctx->blocks_base = (char*) ctx + context_size();
     ctx->heap_count = getNumProcessors() * ALLOC_HOARD_HEAP_CPU_FACTOR;
-    heap_init(&ctx->heap_table[0]);
-    int i; for(i = 1; i < ctx->heap_count; i++)
+    int i; for(i = 0; i <= ctx->heap_count; i++) {
         heap_init(&ctx->heap_table[i]);
+        ctx->heap_table[i].index = i;
+    }
 }
 
 static heap_t* context_globalheap(context_t* ctx) {
@@ -320,19 +331,24 @@ static void* context_malloc(context_t* ctx, heap_t* heap, size_t sz) {
         heap_t* glob = context_globalheap(ctx);
         pthread_mutex_lock(&glob->lock);
 
-        // If there are superblocks available in the global heap
-        if(!heap_full(glob)) {
-            // Transfer it to local heap
-            sb = glob->bins[0];
-            superblock_transfer(sb, heap);
+        // Try to find a suitable superblock on the global heap
+        for(sb = glob->bins[0]; sb; sb = sb->next) {
+            // If the superblock is empty
+            if(!sb->block_used) {
+                superblock_transform(sb, sizecls); break;
+            }
+            // If the superblock matches requested size class
+            else if(sb->size_class == sizecls) break;
         }
-        // Otherwise allocate a new superblock
-        else {
-            sb = superblock_allocate(heap, sizecls);
-        }   
+
+        // Transfer superblock to local heap
+        if(sb) superblock_transfer(sb, heap);
 
         // Unlock global heap
         pthread_mutex_unlock(&glob->lock);
+
+        // If no superblock was found try to allocate a new one
+        if(!sb) sb = superblock_allocate(heap, sizecls);
     }
 
     // Finally, allocate the block unless we are out of memory
@@ -346,14 +362,40 @@ static void* context_malloc(context_t* ctx, heap_t* heap, size_t sz) {
     return mem;
 }
 
-
 //
-// Implementation
+// Global context
 //
 
 inline context_t* get_context(void) {
     return (context_t*) dseg_lo;
 }
+
+//
+// Debugging
+//
+
+void print_heap_stats(heap_t* heap) {
+    pthread_mutex_lock(&heap->lock);
+    printf("Heap #%d\n", heap->index);
+    printf("-------------------------\n");
+    printf("mem_used: %d\n", (int) heap->mem_used);
+    printf("mem_allocated: %d\n", (int) heap->mem_allocated);
+    printf("\n");
+    pthread_mutex_unlock(&heap->lock);
+}
+
+void print_context_stats(context_t* ctx) {
+    int i; for(i = 0; i < ctx->heap_count + 1; i++)
+        print_heap_stats(&ctx->heap_table[i]);
+}
+
+void print_stats() {
+    print_context_stats(get_context());
+}
+
+//
+// Library
+//
 
 void *mm_malloc(size_t sz)
 {
@@ -364,7 +406,8 @@ void *mm_malloc(size_t sz)
     // Find current heap and allocate memory
     context_t* ctx = get_context();
     heap_t* heap = context_heap(ctx, (uint32_t) pthread_self());
-    return context_malloc(ctx, heap, sz);
+    void* mem = context_malloc(ctx, heap, sz);
+    print_heap_stats(heap); return mem;
 }
 
 void mm_free(void *ptr)
