@@ -125,8 +125,12 @@ inline int util_sizeclass(size_t size) {
 // Superblock functions
 //
 
+inline size_t superblock_footprint(void) {
+    return mem_pagesize();
+}
+
 inline size_t superblock_size(void) {
-    return mem_pagesize() - sizeof(superblock_t);
+    return superblock_footprint() - sizeof(superblock_t);
 }
 
 static void superblock_init(superblock_t* sb, heap_t* heap, int size_class) {
@@ -173,7 +177,7 @@ static void superblock_transform(superblock_t* sb, int size_class) {
 
 static superblock_t* superblock_allocate(heap_t* heap, int size_class) {
     // Try to allocate a superblock
-    superblock_t* sb = (superblock_t*) util_allocate(sizeof(superblock_t) + superblock_size());
+    superblock_t* sb = (superblock_t*) util_allocate(superblock_footprint());
     if(!sb) return NULL;
 
     // Initialize the superblock and return it
@@ -230,6 +234,10 @@ static void superblock_transfer(superblock_t* sb, heap_t* heap) {
     sb->heap->bins[sb->group] = sb;
     sb->heap->mem_used += used;
     sb->heap->mem_allocated += allocated;
+}
+
+inline blockptr_t superblock_block_find(superblock_t* sb, void* ptr) {
+    return (blockptr_t) ((((char*) ptr - (char*) sb) - sizeof(superblock_t)) / sb->block_size);
 }
 
 inline void* superblock_block_data(superblock_t* sb, blockptr_t blk) {
@@ -321,6 +329,11 @@ static heap_t* context_heap(context_t* ctx, uint32_t threadid) {
     return &ctx->heap_table[1 + (threadid % ctx->heap_count)];
 }
 
+static superblock_t* context_superblock_find(context_t* ctx, void* ptr) {
+    size_t size = superblock_footprint();
+    return (superblock_t*) ((char*) ctx->blocks_base + ((ptr - ctx->blocks_base) / size) * size);
+}
+
 static void* context_malloc(context_t* ctx, heap_t* heap, size_t sz) {
     // Allocated memory
     void* mem = NULL;
@@ -379,7 +392,25 @@ static void* context_malloc(context_t* ctx, heap_t* heap, size_t sz) {
 }
 
 static void context_free(context_t* ctx, void* ptr) {
+    // Find superblock
+    superblock_t* sb = context_superblock_find(ctx, ptr);
 
+    // Acquire locks
+    heap_t* glob = context_globalheap(ctx);
+    pthread_mutex_lock(&glob->lock);
+    heap_t* heap = sb->heap;
+    pthread_mutex_lock(&heap->lock);
+
+    // Find and free block
+    blockptr_t blk = superblock_block_find(sb, ptr);
+    superblock_block_free(sb, blk);
+
+    // Transfer superblock to global heap if required
+    if(sb->group == 0) superblock_transfer(sb, glob);
+
+    // Release locks
+    pthread_mutex_unlock(&heap->lock);
+    pthread_mutex_unlock(&glob->lock);
 }
 
 //
