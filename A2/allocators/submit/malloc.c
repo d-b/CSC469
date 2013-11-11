@@ -44,6 +44,7 @@ typedef int32_t blockptr_t;
 // Superblock structure
 struct SUPERBLOCK_T {
     heap_t*         heap;
+    uint8_t         group;
     int             size_class;
     size_t          block_size;
     size_t          block_count;
@@ -75,9 +76,8 @@ struct CONTEXT_T {
 //
 
 inline size_t util_pagealigned(size_t size) {
-    size_t padding = size % mem_pagesize();
-    if(padding > 0) padding = mem_pagesize() - padding;
-    return size + padding;
+    size_t page_size = mem_pagesize();
+    return ((size + page_size - 1)/page_size)*page_size;
 }
 
 inline int util_sizeclass(size_t size) {
@@ -99,7 +99,7 @@ inline int util_sizeclass(size_t size) {
 //
 
 inline size_t superblock_size(void) {
-    return mem_pagesize();
+    return mem_pagesize() - sizeof(superblock_t);
 }
 
 static void superblock_init(superblock_t* sb, heap_t* heap, int size_class) {
@@ -112,8 +112,9 @@ static void superblock_init(superblock_t* sb, heap_t* heap, int size_class) {
         sb->block_size *= ALLOC_HOARD_SIZE_CLASS_BASE;
 
     // Set initials
+    sb->group       = 0;
     sb->block_used  = 0;
-    sb->block_count = (superblock_size() - sizeof(superblock_t)) / sb->block_size;
+    sb->block_count = superblock_size() / sb->block_size;
     sb->next_block  = 0;
     sb->next_free   = BLOCK_INVALID;
     
@@ -121,6 +122,11 @@ static void superblock_init(superblock_t* sb, heap_t* heap, int size_class) {
     sb->heap = heap;
     sb->next = NULL;
     sb->prev = NULL;
+}
+
+static int superblock_group(superblock_t* sb) {
+    size_t group_size = sb->block_count/ALLOC_HOARD_FULLNESS_GROUPS;
+    return (sb->block_used + group_size - 1)/group_size;
 }
 
 inline void* superblock_block_data(superblock_t* sb, blockptr_t blk) {
@@ -170,6 +176,16 @@ static void superblock_block_free(superblock_t* sb, blockptr_t blk) {
 
     // Update heap statistics
     sb->heap->mem_used -= sb->block_size;
+}
+
+static void superblock_unlink(superblock_t* sb) {
+    // See if we were the head
+    if(sb->heap->bins[sb->group] == sb)
+        sb->heap->bins[sb->group] = sb->next;
+
+    // Perform standard unlink operation
+    if(sb->prev) sb->prev->next = sb->next;
+    if(sb->next) sb->next->prev = sb->prev;
 }
 
 //
@@ -224,7 +240,7 @@ static void* context_malloc(context_t* ctx, heap_t* heap, size_t sz) {
 
     // Scan heap for appropriate superblock
     superblock_t* sb = NULL; int group;
-    for(group = ALLOC_HOARD_FULLNESS_GROUPS; group >= 1; group--) {
+    for(group = ALLOC_HOARD_FULLNESS_GROUPS - 1; group >= 0; group--) {
         for(sb = heap->bins[group]; sb; sb = sb->next)
             if(sb->size_class == sizecls &&
                sb->block_used <  sb->block_count) break;
