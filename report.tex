@@ -24,7 +24,6 @@
 \usepackage{url}
 \usepackage{graphicx}
 \usepackage{courier}
-\setlength\parindent{0pt} % Removes all indentation from paragraphs
 %\usepackage{times} % Uncomment to use the Times New Roman font
 
 %----------------------------------------------------------------------------------------
@@ -56,13 +55,24 @@ Instructor: & Professor Angela Demke Brown % Instructor/supervisor
 %	SECTION 1
 %----------------------------------------------------------------------------------------
 
-\section{Objective}
+\section{Motivation}
 
 To create a scalable parallel memory allocator that is at least as fast as the standard c malloc.
 
 
-\section{Methodology}
-	Hoard.
+\section{Hoard}
+
+\indent \indent We choose to implement the Hoard Memory Allocator based on both its proven history and its utilization in modern Operating Systems. 
+\\
+\textbf{False Sharing}
+\\
+\indent Hoard utilizes Superblocks and multiplle heaps to avoid most active and passive false sharing. 
+\\
+\textbf{Blowup}
+\\
+\textbf{Scalability}
+
+	In order to 
 \section{Structures}
 
 \textbf{Superblock}
@@ -97,6 +107,10 @@ struct SUPERBLOCK\_T \{
 
 
 \section{Results}
+\textbf{Speed}
+\\
+\textbf{Scalability}
+\\
 \section{Discussion}
  
 %----------------------------------------------------------------------------------------
