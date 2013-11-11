@@ -168,8 +168,10 @@ static superblock_t* superblock_allocate(heap_t* heap, int size_class) {
 }
 
 static int superblock_group(superblock_t* sb) {
-    size_t group_size = sb->block_count/ALLOC_HOARD_FULLNESS_GROUPS;
-    return (sb->block_used + group_size - 1)/group_size;
+    size_t group_size = sb->block_count / ALLOC_HOARD_FULLNESS_GROUPS;
+    int group = sb->block_used / group_size;
+    return (group >= ALLOC_HOARD_FULLNESS_GROUPS) ?
+        ALLOC_HOARD_FULLNESS_GROUPS - 1 : group;
 }
 
 static void superblock_unlink(superblock_t* sb) {
@@ -321,7 +323,7 @@ static void* context_malloc(context_t* ctx, heap_t* heap, size_t sz) {
         for(sb = heap->bins[group]; sb; sb = sb->next)
             if(sb->size_class == sizecls &&
                sb->block_used <  sb->block_count) break;
-        // If block was found break out
+        // If a superblock was found break out
         if(sb) break;
     }
 
@@ -374,12 +376,26 @@ inline context_t* get_context(void) {
 // Debugging
 //
 
+void print_superblock(superblock_t* sb) {
+    printf("SB @ 0x%08x: CLS=%d, USED=%d, COUNT=%d\n",
+        (int)(intptr_t) sb,
+        (int)sb->size_class,
+        (int)sb->block_used,
+        (int)sb->block_count);
+}
+
 void print_heap_stats(heap_t* heap) {
     pthread_mutex_lock(&heap->lock);
     printf("Heap #%d\n", heap->index);
     printf("-------------------------\n");
     printf("mem_used: %d\n", (int) heap->mem_used);
-    printf("mem_allocated: %d\n", (int) heap->mem_allocated);
+    printf("mem_allocated: %d\n\n", (int) heap->mem_allocated);
+    int i; for(i = 0; i < ALLOC_HOARD_FULLNESS_GROUPS; i++) {
+        printf("BIN[%d]\n", i);
+        printf("--------------\n");
+        superblock_t* sb; for(sb = heap->bins[i]; sb; sb = sb->next)
+            print_superblock(sb);
+    }
     printf("\n");
     pthread_mutex_unlock(&heap->lock);
 }
