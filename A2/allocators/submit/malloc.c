@@ -398,18 +398,20 @@ static void context_free(context_t* ctx, void* ptr) {
     // Acquire locks
     heap_t* glob = context_globalheap(ctx);
     pthread_mutex_lock(&glob->lock);
-    heap_t* heap = sb->heap;
-    pthread_mutex_lock(&heap->lock);
+    heap_t* heap = (glob != sb->heap) ? sb->heap : NULL;
+    if(heap) pthread_mutex_lock(&heap->lock);
 
     // Find and free block
     blockptr_t blk = superblock_block_find(sb, ptr);
     superblock_block_free(sb, blk);
 
-    // Transfer superblock to global heap if required
-    if(sb->group == 0) superblock_transfer(sb, glob);
+    // If we freed a block from a local heap
+    if(heap) {
+        if(sb->group == 0) superblock_transfer(sb, glob);
+        pthread_mutex_unlock(&heap->lock);
+    }
 
-    // Release locks
-    pthread_mutex_unlock(&heap->lock);
+    // Release global lock    
     pthread_mutex_unlock(&glob->lock);
 }
 
