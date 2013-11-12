@@ -4,7 +4,7 @@ use strict;
 
 my $graphtitle = "active-false runtimes";
 
-my @namelist = ("libc", "kheap", "cmu");
+my @namelist = ("libc", "kheap", "cmu", "submit");
 my %names;
 
 # This allows you to give each series a name on the graph
@@ -13,6 +13,7 @@ my %names;
 $names{"libc"} = "libc";
 $names{"kheap"} = "kheap";
 $names{"cmu"} = "cmu";
+$names{"submit"} = "submit";
 
 my $name;
 my $base;
