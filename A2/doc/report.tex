@@ -57,7 +57,7 @@ Instructor: & Professor Angela Demke Brown % Instructor/supervisor
 
 \section{Motivation}
 
-To create a scalable parallel memory allocator that is at least as fast as the standard c malloc.
+\indent \indent To create a scalable parallel memory allocator that is at least as fast as the standard c malloc.
 
 
 \section{Hoard Implementation}
@@ -68,19 +68,23 @@ To create a scalable parallel memory allocator that is at least as fast as the s
 \noindent
 \textbf{Blowup}
 \\
-\indent  Utilizing an \textit{emptyness threshold} which can be experimentally set, we divide the Superblocks in a specific per processor heap by \textit{fullness groups}.  When a heap drops below the emptyness threshold, we transfer a superblock that is at least emptyness threshold empty.  By implementing this threshold, the same invarient that Berger used in his experiments in the original paper on Hoard holds (CITATION)
+\indent  Utilizing an \textit{emptyness threshold} which can be experimentally set, we divide the Superblocks in a specific per processor heap by \textit{fullness groups}.  When a heap drops below the emptyness threshold, we transfer a superblock that is at least emptyness threshold empty from the appropriate \textit{fullnes bin}.  By implementing this threshold, the invarient that Berger et. al. used in their experiments in their canonical paper holds (CITATION).  Namely when we remove a superblock we reduce the amount of memory in use \textit{ui} by at most (1-\textit{emptyness threshold}), but we reduce the amount of memory allocated by Hoard from the Operating System \textit{ai} by \textit{S} the size of a superblock.   Maintaining this invarient bounds blowup to a constant factor (CITATION).  
+\\
+\textbf{Locality}
+\\
+\indent Allocated memory if requested from the highest \textit{fullness groups} first.  Fullness groups are also maintained in order of most recently freed\textit{(move to front heuristic)}.  Blocks that are reallocated are thus likley to still be in a Superblock already in memory.  Free blocks are in LIFO, so we are also liklet to use a block that is already in the cache.
 \\
 \textbf{Fragmentation}
 \\
-\indent Inside Superblocks.  Superblocks use size classes for internal blocks which are powers of \textit{b}, and limit internal fragmentation to \textit{b} (CITATION) pp\#2. \textit{b} can be experimentally set.
+\indent Inside Superblocks.  Superblocks use size classes for their blocks which can be experimentally set.  Size classes are powers of \textit{b} (where \textit{b} $>$ 1), and limit internal fragmentation to a factor of \textit{b} (CITATION) pp\#2. \textit{b} can be experimentally set.  
 \\
-\indent Outside Superblocks.  Superblocks are not returned to the Operating System, they are \textit{recycled} for re use by any size class.
+\indent Outside Superblocks.  Superblocks are not returned to the Operating System, they are \textit{recycled} for use by any size class.
 \\
 \textbf{False Sharing}
 \\
-\indent Hoard utilizes Superblocks and multiplle heaps to avoid most active and passive false sharing. 
+\indent Hoard utilizes Superblocks and multiplle heaps to avoid most active and passive false sharing.   Superblocks only ser   Although when the \textit{emptyness threshold} is reached and a Superblock is returned to the Global heap there is then the possibility of false sharing, Berger et. al. find in practice the returned Superblocks are mainly completley empty (CITATION PP3).
 
-
+\newpage
 
 \section{Structures}
 
@@ -89,31 +93,30 @@ To create a scalable parallel memory allocator that is at least as fast as the s
 \\
 struct SUPERBLOCK\_T \{
 \\
-    heap\_t* heap;
+\indent   heap\_t* heap;
 \\
-    uint8\_t group;
+\indent   uint8\_t group;
 \\
-    int size\_class;
+\indent    int size\_class;
 \\
-    size\_t block\_size;
+\indent    size\_t block\_size;
 \\
-    size\_t block\_count;
+\indent    size\_t block\_count;
 \\
-    size\_t block\_used;
+\indent    size\_t block\_used;
 \\
-    blockptr\_t next\_block;
+\indent    blockptr\_t next\_block;
 \\
-    blockptr\_t next\_free;
+\indent    blockptr\_t next\_free;
 \\
-    superblock\_t\* prev;
+\indent    superblock\_t\* prev;
 \\
-    superblock\_t\* next;
+\indent    superblock\_t\* next;
 \\
 \} \_\_attribute\_\_((aligned(ARCH\_CACHE\_ALIGNMENT)));
 }
 \\
 \\
-\newpage
 
 \noindent \textbf{Heap}
 \\
@@ -129,7 +132,8 @@ struct SUPERBLOCK\_T \{
 \\
 \};}
 
-
+\newpage
+\noindent
 \section{Results}
 \textbf{Speed}
 \\
@@ -141,7 +145,8 @@ struct SUPERBLOCK\_T \{
 %	SECTION 2
 %----------------------------------------------------------------------------------------
 
-
+\newpage
+\noindent
 %----------------------------------------------------------------------------------------
 %	BIBLIOGRAPHY
 %----------------------------------------------------------------------------------------
