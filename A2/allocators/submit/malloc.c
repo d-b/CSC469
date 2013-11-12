@@ -48,6 +48,7 @@ typedef int32_t blockptr_t;
 
 // Superblock structure
 struct SUPERBLOCK_T {
+    pthread_mutex_t lock;
     heap_t*         heap;
     uint8_t         group;
     int             size_class;
@@ -62,6 +63,7 @@ struct SUPERBLOCK_T {
 
 // Heap
 struct HEAP_T {
+    pthread_mutex_t lock;
     int             index;
     size_t          mem_used;
     size_t          mem_allocated;
@@ -70,7 +72,6 @@ struct HEAP_T {
 
 // Allocator context
 struct CONTEXT_T {
-    pthread_mutex_t lock;    
     void*           blocks_base;
     int             heap_count;
     heap_t          heap_table[1];
@@ -135,6 +136,14 @@ inline size_t superblock_size(void) {
     return mem_pagesize();
 }
 
+inline void superblock_lock(superblock_t* sb) {
+    pthread_mutex_lock(&sb->lock);
+}
+
+inline void superblock_unlock(superblock_t* sb) {
+    pthread_mutex_unlock(&sb->lock);
+}
+
 static void superblock_link(superblock_t* sb, heap_t* heap, int group) {
     // Set new heap and group
     sb->heap = heap;
@@ -159,6 +168,9 @@ static void superblock_unlink(superblock_t* sb) {
 }
 
 static void superblock_init(superblock_t* sb, heap_t* heap, int size_class) {
+    // Initialize lock
+    pthread_mutex_init(&sb->lock, NULL);
+
     // Set size class
     sb->size_class = size_class;
 
@@ -197,6 +209,8 @@ static void superblock_transform(superblock_t* sb, int size_class) {
 
     // Set initials
     sb->block_count = superblock_size() / sb->block_size;
+    sb->next_block  = 0;
+    sb->next_free   = BLOCK_INVALID;
 }
 
 static superblock_t* superblock_allocate(heap_t* heap, int size_class) {
@@ -300,11 +314,47 @@ static void superblock_block_free(superblock_t* sb, blockptr_t blk) {
 // Heap functions
 //
 
+inline void heap_lock(heap_t* heap) {
+    pthread_mutex_lock(&heap->lock);
+}
+
+inline void heap_unlock(heap_t* heap) {
+    pthread_mutex_unlock(&heap->lock);
+}
+
 static void heap_init(heap_t* heap) {
+    pthread_mutex_init(&heap->lock, NULL);
     heap->mem_used = 0;
     heap->mem_allocated = 0;
     int i; for(i = 0; i < ALLOC_HOARD_FULLNESS_GROUPS; i++)
         heap->bins[i] = NULL;
+}
+
+static heap_t* superblock_heap_lock(superblock_t* sb) {
+    // The heap
+    heap_t* heap;
+
+    // Try to acquire the heap lock
+    for(;;) {
+        // Get the current heap
+        superblock_lock(sb);
+        heap = sb->heap;
+        superblock_unlock(sb);
+
+        // Lock the heap
+        heap_lock(heap);
+
+        // Get the new heap
+        superblock_lock(sb);
+        heap_t* heapnew = sb->heap;
+        superblock_unlock(sb);
+
+        // Break if they match
+        if(heap == heapnew) return heap;
+
+        // Unlock the heap again
+        heap_unlock(heap);
+    }
 }
 
 //
@@ -316,16 +366,7 @@ inline size_t context_size() {
     return util_pagealigned(size);
 }
 
-inline void context_lock(context_t* ctx) {
-    pthread_mutex_lock(&ctx->lock);
-}
-
-inline void context_unlock(context_t* ctx) {
-    pthread_mutex_unlock(&ctx->lock);
-}
-
 static void context_init(context_t* ctx) {
-    pthread_mutex_init(&ctx->lock, NULL);
     ctx->blocks_base = (char*) ctx + context_size();
     ctx->heap_count = getNumProcessors() * ALLOC_HOARD_HEAP_CPU_FACTOR;
     int i; for(i = 0; i <= ctx->heap_count; i++) {
@@ -374,8 +415,9 @@ static void* context_malloc(context_t* ctx, heap_t* heap, size_t sz) {
 
     // If no superblock was found
     if(!sb) {
-        // Get global heap
+        // Get and lock global heap
         heap_t* glob = context_globalheap(ctx);
+        heap_lock(glob);
 
         // Try to find a suitable superblock on the global heap
         for(sb = glob->bins[0]; sb; sb = sb->next) {
@@ -388,9 +430,16 @@ static void* context_malloc(context_t* ctx, heap_t* heap, size_t sz) {
         }
 
         // Transfer superblock to local heap
-        if(sb) superblock_transfer(sb, heap);
+        if(sb) {
+            superblock_lock(sb);
+            superblock_transfer(sb, heap);
+            superblock_unlock(sb);
+        }
         // If no superblock was found try to allocate a new one
         else sb = superblock_allocate(heap, sizecls);
+
+        // Unlock global heap
+        heap_unlock(glob);
     }
 
     // Finally, allocate the block unless we are out of memory
@@ -405,14 +454,29 @@ static void* context_malloc(context_t* ctx, heap_t* heap, size_t sz) {
 static void context_free(context_t* ctx, void* ptr) {
     // Find superblock
     superblock_t* sb = context_superblock_find(ctx, ptr);
+    heap_t* heap = superblock_heap_lock(sb);
 
     // Find and free block
     blockptr_t blk = superblock_block_find(sb, ptr);
     superblock_block_free(sb, blk);
 
     // If the superblock is mostly empty transfer it to global
-    if(sb->heap->index != 0 && sb->group == 0)
-        superblock_transfer(sb, context_globalheap(ctx));
+    if(sb->heap->index != 0 && sb->group == 0) {
+        // Get and lock global heap
+        heap_t* glob = context_globalheap(ctx);
+        heap_lock(glob);
+
+        // Perform the transfer
+        superblock_lock(sb);
+        superblock_transfer(sb, glob);
+        superblock_unlock(sb);
+
+        // Unlock the global heap
+        heap_unlock(glob);
+    }
+
+    // Unlock the heap
+    heap_unlock(heap);
 }
 
 //
@@ -470,11 +534,10 @@ void *mm_malloc(size_t sz)
 
     // Find current heap and allocate memory
     context_t* ctx = get_context();
-    context_lock(ctx);
-        heap_t* heap = context_heap(ctx, (uint32_t) pthread_self());
+    heap_t* heap = context_heap(ctx, (uint32_t) pthread_self());
+    heap_lock(heap);
         void* mem = context_malloc(ctx, heap, sz);
-    context_unlock(ctx);
-    return mem;
+    heap_unlock(heap); return mem;
 }
 
 void mm_free(void *ptr)
@@ -485,10 +548,7 @@ void mm_free(void *ptr)
     }
 
     // Free the object
-    context_t* ctx = get_context();
-    context_lock(ctx);    
-        context_free(ctx, ptr);
-    context_unlock(ctx);
+    context_free(get_context(), ptr);
 }
 
 int mm_init(void)
