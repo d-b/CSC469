@@ -339,7 +339,14 @@ static heap_t* context_globalheap(context_t* ctx) {
 }
 
 static heap_t* context_heap(context_t* ctx, uint32_t threadid) {
-    return &ctx->heap_table[1 + (threadid % ctx->heap_count)];
+    uint32_t a = threadid;
+    a = (a+0x7ed55d16) + (a<<12);
+    a = (a^0xc761c23c) ^ (a>>19);
+    a = (a+0x165667b1) + (a<<5);
+    a = (a+0xd3a2646c) ^ (a<<9);
+    a = (a+0xfd7046c5) + (a<<3);
+    a = (a^0xb55a4f09) ^ (a>>16);
+    return &ctx->heap_table[1 + (a % ctx->heap_count)];
 }
 
 static superblock_t* context_superblock_find(context_t* ctx, void* ptr) {
