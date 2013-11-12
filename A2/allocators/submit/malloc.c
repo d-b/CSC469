@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <assert.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 
 #include "memlib.h"
 #include "mm_thread.h"
@@ -24,7 +26,7 @@
 #define ALLOC_HOARD_FULLNESS_GROUPS 4
 #define ALLOC_HOARD_SIZE_CLASS_BASE 2
 #define ALLOC_HOARD_SIZE_CLASS_MIN  2
-#define ALLOC_HOARD_HEAP_CPU_FACTOR 3
+#define ALLOC_HOARD_HEAP_CPU_FACTOR 1
 
 //
 // Hoard structures
@@ -85,6 +87,10 @@ pthread_mutex_t util_allocator_lock;
 
 static void util_init(void) {
     pthread_mutex_init(&util_allocator_lock, NULL);
+}
+
+inline pid_t util_gettid(void) {
+    return (pid_t) syscall(SYS_gettid);
 }
 
 inline void* util_allocate(size_t size) {
@@ -380,15 +386,7 @@ static heap_t* context_globalheap(context_t* ctx) {
 }
 
 static heap_t* context_heap(context_t* ctx, uint32_t threadid) {
-    // Hash using Jenkin's mix technique
-    uint32_t mix = threadid;
-    mix = (mix+0x7ed55d16) + (mix<<12);
-    mix = (mix^0xc761c23c) ^ (mix>>19);
-    mix = (mix+0x165667b1) + (mix<<5);
-    mix = (mix+0xd3a2646c) ^ (mix<<9);
-    mix = (mix+0xfd7046c5) + (mix<<3);
-    mix = (mix^0xb55a4f09) ^ (mix>>16);
-    return &ctx->heap_table[1 + (mix % ctx->heap_count)];
+    return &ctx->heap_table[1 + (threadid % ctx->heap_count)];
 }
 
 static superblock_t* context_superblock_find(context_t* ctx, void* ptr) {
@@ -534,7 +532,7 @@ void *mm_malloc(size_t sz)
 
     // Find current heap and allocate memory
     context_t* ctx = get_context();
-    heap_t* heap = context_heap(ctx, (uint32_t) pthread_self());
+    heap_t* heap = context_heap(ctx, util_gettid());
     heap_lock(heap);
         void* mem = context_malloc(ctx, heap, sz);
     heap_unlock(heap); return mem;
