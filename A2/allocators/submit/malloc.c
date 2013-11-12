@@ -188,7 +188,7 @@ static void superblock_transform(superblock_t* sb, int size_class) {
     assert(sb->block_used == 0);
 
     // Set size class
-    sb->size_class = size_class; 
+    sb->size_class = size_class;
 
     // Compute block size
     sb->block_size = 1;
