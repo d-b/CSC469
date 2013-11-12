@@ -24,6 +24,7 @@
 // Hoard parameters
 //
 #define ALLOC_HOARD_FULLNESS_GROUPS 4
+#define ALLOC_HOARD_MIN_SUPERBLOCKS 1
 #define ALLOC_HOARD_SIZE_CLASS_BASE 2
 #define ALLOC_HOARD_SIZE_CLASS_MIN  2
 #define ALLOC_HOARD_HEAP_CPU_FACTOR 1
@@ -328,6 +329,10 @@ inline void heap_unlock(heap_t* heap) {
     pthread_mutex_unlock(&heap->lock);
 }
 
+inline int heap_is_fluid(heap_t* heap) {
+    return (heap->mem_allocated - heap->mem_used) > (superblock_size() * ALLOC_HOARD_MIN_SUPERBLOCKS);
+}
+
 static void heap_init(heap_t* heap) {
     pthread_mutex_init(&heap->lock, NULL);
     heap->mem_used = 0;
@@ -458,8 +463,8 @@ static void context_free(context_t* ctx, void* ptr) {
     blockptr_t blk = superblock_block_find(sb, ptr);
     superblock_block_free(sb, blk);
 
-    // If the superblock is mostly empty transfer it to global
-    if(sb->heap->index != 0 && sb->group == 0) {
+    // If the superblock is mostly empty and the heap is fluid
+    if(sb->heap->index != 0 && sb->group == 0 && heap_is_fluid(sb->heap)) {
         // Get and lock global heap
         heap_t* glob = context_globalheap(ctx);
         heap_lock(glob);
