@@ -62,7 +62,9 @@ Instructor: & Professor Angela Demke Brown % Instructor/supervisor
 
 \section{Hoard Implementation}
 
-\indent \indent We choose to implement the Hoard Memory Allocator based on both its proven history and its utilization in modern Operating Systems.  We use a global heap, and a CPU scaling factor which can be experimentally set to determine a number of per CPU heaps to initilize.  Threads are assigned to run on specific heaps.  The CPU scaling factor along with a more advanced hashing function help to prevent concurrent threads from being assigned to the same CPU.
+\indent \indent We choose to implement the Hoard Memory Allocator based on both its historical significance and its utilization in modern Operating Systems.  We use a global heap, and a CPU scaling factor which can be experimentally set to determine a number of per CPU heaps to initilize.  Threads are assigned to run on specific per CPU heaps.  
+\\
+\indent We will use more heaps along with a more advanced hashing function in an attempt to prevent assignments of concurrent threads assigned to the same CPU.  Memory is managed in standard sized Superblocks to avoid false sharing, and we choose the system pagesize as the size for our Superblock.
 \\
 \newpage
 \noindent
@@ -131,6 +133,23 @@ struct SUPERBLOCK\_T \{
  \indent   superblock\_t\* bins[ALLOC\_HOARD\_FULLNESS\_GROUPS];
 \\
 \};}
+\\
+\\
+\noindent \textbf{Heap Table}
+\\
+\texttt{
+struct CONTEXT\_T \{
+\\
+\indent    pthread\_mutex\_t lock;
+\\
+\indent    void\* blocks\_base;
+\\
+\indent    int heap\_count;
+\\
+ \indent   heap\_t heap\_table[1];
+\\
+\};}
+
 
 \newpage
 \noindent
@@ -156,7 +175,7 @@ Berger, Emery. "Hoard: A Scalable Memory Allocator for Multithreaded Application
 \bibliography{sample}
 \\
 \\
-Berger, Emery. "Hoard: A Fast, Scalable, and Memory-Efficient Allocator for Shared-Memory Multiprocessors." Ftp://ftp.cs.utexas.edu. N.p., n.d. Web. <ftp://ftp.cs.utexas.edu/pub/techreports/tr99-22.pdf>.
+Berger, Emery. "Hoard: A Fast, Scalable, and Memory-Efficient Allocator for Shared-Memory Multiprocessors." cs.utexas.edu. N.p., n.d. Web. <ftp://ftp.cs.utexas.edu/pub/techreports/tr99-22.pdf>.
 
 %----------------------------------------------------------------------------------------
 
