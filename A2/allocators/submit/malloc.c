@@ -188,7 +188,7 @@ static void superblock_transform(superblock_t* sb, int size_class) {
     assert(sb->block_used == 0);
 
     // Set size class
-    sb->size_class = size_class;
+    sb->size_class = size_class; 
 
     // Compute block size
     sb->block_size = 1;
@@ -197,6 +197,8 @@ static void superblock_transform(superblock_t* sb, int size_class) {
 
     // Set initials
     sb->block_count = superblock_size() / sb->block_size;
+    sb->next_block  = 0;
+    sb->next_free   = BLOCK_INVALID;
 }
 
 static superblock_t* superblock_allocate(heap_t* heap, int size_class) {
