@@ -24,7 +24,7 @@
 #define ALLOC_HOARD_FULLNESS_GROUPS 4
 #define ALLOC_HOARD_SIZE_CLASS_BASE 2
 #define ALLOC_HOARD_SIZE_CLASS_MIN  2
-#define ALLOC_HOARD_HEAP_CPU_FACTOR 2
+#define ALLOC_HOARD_HEAP_CPU_FACTOR 3
 
 //
 // Hoard structures
@@ -339,14 +339,15 @@ static heap_t* context_globalheap(context_t* ctx) {
 }
 
 static heap_t* context_heap(context_t* ctx, uint32_t threadid) {
-    uint32_t a = threadid;
-    a = (a+0x7ed55d16) + (a<<12);
-    a = (a^0xc761c23c) ^ (a>>19);
-    a = (a+0x165667b1) + (a<<5);
-    a = (a+0xd3a2646c) ^ (a<<9);
-    a = (a+0xfd7046c5) + (a<<3);
-    a = (a^0xb55a4f09) ^ (a>>16);
-    return &ctx->heap_table[1 + (a % ctx->heap_count)];
+    // Hash using Jenkin's mix technique
+    uint32_t mix = threadid;
+    mix = (mix+0x7ed55d16) + (mix<<12);
+    mix = (mix^0xc761c23c) ^ (mix>>19);
+    mix = (mix+0x165667b1) + (mix<<5);
+    mix = (mix+0xd3a2646c) ^ (mix<<9);
+    mix = (mix+0xfd7046c5) + (mix<<3);
+    mix = (mix^0xb55a4f09) ^ (mix>>16);
+    return &ctx->heap_table[1 + (mix % ctx->heap_count)];
 }
 
 static superblock_t* context_superblock_find(context_t* ctx, void* ptr) {
