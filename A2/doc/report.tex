@@ -19,7 +19,7 @@
 %	PACKAGES AND DOCUMENT CONFIGURATIONS
 %----------------------------------------------------------------------------------------
 
-\documentclass[11pt]{article}
+\documentclass{article}
 \usepackage{amssymb, amsmath}
 \usepackage{url}
 \usepackage{graphicx}
@@ -57,7 +57,7 @@ Instructor: & Professor Angela Demke Brown % Instructor/supervisor
 
 \section{Motivation}
 
-\indent \indent To create a scalable parallel memory allocator with higher throughput and lower fragmentation than sequential allocators.  Ideally, our allocator will also be as as good or better than the standard c malloc in these respects.
+\indent \indent To create a scalable parallel memory allocator with higher throughput and lower fragmentation than sequential allocators which maintains coherency.  Ideally, our allocator will also be as as good or better than the standard c malloc in these respects.
 
 
 \section{Hoard Implementation}
@@ -66,11 +66,13 @@ Instructor: & Professor Angela Demke Brown % Instructor/supervisor
 \\
 \indent We will use more heaps along with a more advanced hashing function in an attempt to prevent assignments of concurrent threads assigned to the same CPU.  Memory is managed in standard sized Superblocks to avoid false sharing, and we choose the system pagesize as the size for our Superblock.
 \\
+\indent By experimenting with the values that affect Hoards performance, we hope to further optimize our allocator.
+\\
 \newpage
 \noindent
 \textbf{Blowup}
 \\
-\indent  Utilizing an \textit{emptyness threshold} which can be experimentally set, we divide the Superblocks in a specific per processor heap by \textit{fullness groups}.  When a heap drops below the emptyness threshold, we transfer a superblock that is at least emptyness threshold empty from the appropriate \textit{fullnes bin}.  By implementing this threshold, the invarient that Berger et. al. used in their experiments in their canonical paper holds (CITATION).  Namely when we remove a superblock we reduce the amount of memory in use \textit{ui} by at most (1-\textit{emptyness threshold}), but we reduce the amount of memory allocated by Hoard from the Operating System \textit{ai} by \textit{S} the size of a superblock.   Maintaining this invarient bounds blowup to a constant factor (CITATION).  
+\indent  Utilizing an \textit{emptyness threshold} which can be experimentally set, we divide the Superblocks in a specific per processor heap by \textit{fullness groups}.  When a heap drops below the emptyness threshold, we transfer a superblock that is at least emptyness threshold empty from the appropriate \textit{fullnes bin} back to the Global heap of free Superblocks.  By implementing this threshold, the invarient that Berger et. al. used in their experiments in their canonical paper holds (CITATION).  Namely when we remove a superblock we reduce the amount of memory in use \textit{ui} by at most (1-\textit{emptyness threshold}), but we reduce the amount of memory allocated by Hoard from the Operating System \textit{ai} by \textit{S} the size of a superblock.   Maintaining this invarient bounds blowup to a constant factor (CITATION).  
 \\
 \textbf{Locality}
 \\
@@ -84,7 +86,7 @@ Instructor: & Professor Angela Demke Brown % Instructor/supervisor
 \\
 \textbf{False Sharing}
 \\
-\indent Hoard utilizes Superblocks and multiplle heaps to avoid most active and passive false sharing.   Superblocks only ser   Although when the \textit{emptyness threshold} is reached and a Superblock is returned to the Global heap there is then the possibility of false sharing, Berger et. al. find in practice the returned Superblocks are mainly completley empty (CITATION PP3).
+\indent Hoard utilizes Superblocks and multiplle heaps to avoid most active and passive false sharing.  Although when the \textit{emptyness threshold} is reached and a Superblock is returned to the Global heap there is then the possibility of false sharing, Berger et. al. find in practice the returned Superblocks are mainly completley empty (CITATION PP3).
 
 \newpage
 
