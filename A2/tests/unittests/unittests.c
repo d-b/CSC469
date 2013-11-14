@@ -47,28 +47,31 @@ int basic_coherency_check(int size){
 int coherency_check(int depth){
 
    
-    printf("Begin Suberblock coherency check\n");
-    /* psudo random int in Superblock range */
-    int r = rand() % 2046 ;
+	printf("Begin Suberblock coherency check\n");
+	/* Create reference array */
+	int r = rand() % 2046 ;
 	    (void) r;
-     int* rand_array = malloc(r * sizeof(int));
+	int* rand_array = malloc(r * sizeof(int));
 	char** ptr_array = malloc(depth * sizeof(char *));
 
 	int i;
 	for (i=0; i < r; i++){
 			rand_array[i] =  rand() % r; 
 	}
+	
+	/*Allocate in front of test array*/
 	for (i=0; i<depth/2 ; i++){
 			ptr_array[i] = mm_malloc(rand() % 2046);
 	}
-
+	/*Allocate test array*/
 	int* test = mm_malloc(r * sizeof(int));
       
+	/*Fill test array with reference values*/
     	for (i=0; i < r; i++) test[i] = rand_array[i];	
 
 
 
-              printf("Sanity Check\n");
+	printf("Sanity Check\n");
         for (i=0; i < r; i++){
                 if(test[i] != rand_array[i]){
                         printf("\nFAILED %d != %d\n", test[i], rand_array[i]);
@@ -76,15 +79,15 @@ int coherency_check(int depth){
                }     
                    
         }  
-
-          for (i=0; i<depth ; i++){
+	/*Modify stack*/
+	for (i=depth/2; i<depth ; i++){
                         ptr_array[i] = mm_malloc(rand() % 2046);
         }
-        for (i=0; i<depth ; i++){
+        for (i=0; i<depth/2 ; i++){
                         mm_free(ptr_array[i]);
         }
 
-	  
+	/*TEST*/
 	printf("PASS 1\n");
         for (i=0; i < r; i++){
                 printf(".");
@@ -94,14 +97,14 @@ int coherency_check(int depth){
                }     
                    
         }        
-
-          for (i=0; i<depth ; i++){
+        /*Modify stack*/
+	for (i=depth/2; i<depth ; i++){
                         ptr_array[i] = mm_malloc(rand() % 2046);
         }
-        for (i=0; i<depth ; i++){
+        for (i=depth/2; i<depth ; i++){
                         mm_free(ptr_array[i]);
         }
-        
+        /*TEST*/
         printf("\nPASS 2\n");
         for (i=0; i < r; i++){
                     printf(".");
@@ -112,8 +115,7 @@ int coherency_check(int depth){
                    
         }
 	printf("\nPASSED\n");
-return 0;	
-	
+	return 0;	
 }
 
 int main (int argc, char* argv[]) {
