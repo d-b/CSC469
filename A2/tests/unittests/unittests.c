@@ -52,7 +52,7 @@ int coherency_check(int depth){
     int r = rand() % 2046 ;
 	    (void) r;
      int* rand_array = malloc(r * sizeof(int));
-	char** ptr_array = malloc(r * sizeof(char *));
+	char** ptr_array = malloc(depth * sizeof(char *));
 
 	int i;
 	for (i=0; i < r; i++){
@@ -65,6 +65,9 @@ int coherency_check(int depth){
 	int* test = mm_malloc(r * sizeof(int));
       
     	for (i=0; i < r; i++) test[i] = rand_array[i];	
+
+
+
               printf("Sanity Check\n");
         for (i=0; i < r; i++){
                 if(test[i] != rand_array[i]){
@@ -73,12 +76,15 @@ int coherency_check(int depth){
                }     
                    
         }  
-	  for (i=(depth/2+1); i<depth ; i++){
+
+          for (i=0; i<depth ; i++){
                         ptr_array[i] = mm_malloc(rand() % 2046);
         }
-        for (i=0; i<depth/2 ; i++){
+        for (i=0; i<depth ; i++){
                         mm_free(ptr_array[i]);
         }
+
+	  
 	printf("PASS 1\n");
         for (i=0; i < r; i++){
                 printf(".");
@@ -89,10 +95,13 @@ int coherency_check(int depth){
                    
         }        
 
-        for (i=(depth/2+1); i<depth ; i++){
+          for (i=0; i<depth ; i++){
+                        ptr_array[i] = mm_malloc(rand() % 2046);
+        }
+        for (i=0; i<depth ; i++){
                         mm_free(ptr_array[i]);
         }
-
+        
         printf("\nPASS 2\n");
         for (i=0; i < r; i++){
                     printf(".");
@@ -113,6 +122,6 @@ int main (int argc, char* argv[]) {
     basic_coherency_check(100);
     basic_coherency_check(500);
     basic_coherency_check(2000);
-    coherency_check(2000);    
+    coherency_check(20000);    
 return 0;
 }
