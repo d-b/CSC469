@@ -83,10 +83,12 @@ struct CONTEXT_T {
 // Utility functions
 //
 
+size_t          util_system_pagesize;
 pthread_mutex_t util_allocator_lock;
 
 static void util_init(void) {
     pthread_mutex_init(&util_allocator_lock, NULL);
+    util_system_pagesize = mem_pagesize();
 }
 
 inline pid_t util_gettid(void) {
@@ -108,8 +110,12 @@ inline void* util_desg_hi() {
     return dseg_hi;
 }
 
+inline size_t util_pagesize() {
+    return util_system_pagesize;
+}
+
 inline size_t util_pagealigned(size_t size) {
-    size_t page_size = mem_pagesize();
+    size_t page_size = util_pagesize();
     return ((size + page_size - 1)/page_size)*page_size;
 }
 
@@ -132,11 +138,11 @@ inline int util_sizeclass(size_t size) {
 //
 
 inline size_t superblock_footprint(void) {
-    return mem_pagesize() + sizeof(superblock_t);
+    return util_pagesize() + sizeof(superblock_t);
 }
 
 inline size_t superblock_size(void) {
-    return mem_pagesize();
+    return util_pagesize();
 }
 
 static void superblock_link(superblock_t* sb, heap_t* heap, int group) {
@@ -161,7 +167,6 @@ static void superblock_unlink(superblock_t* sb) {
     if(sb->next) sb->next->prev = sb->prev;
     sb->prev = sb->next = NULL;
 }
-
 
 static void superblock_transform(superblock_t* sb, int size_class) {
     // Set size class
@@ -215,7 +220,7 @@ static int superblock_group(superblock_t* sb) {
 
 static void superblock_move(superblock_t* sb) {
     int group = superblock_group(sb);
-    if(group != sb->group) {
+    if(sb->heap->bins[group] != sb) {
         superblock_unlink(sb);
         superblock_link(sb, sb->heap, group);
     }
@@ -521,11 +526,11 @@ void mm_free(void *ptr)
 
 int mm_init(void)
 {
+    // See if we need to initialize the memory
+    if(util_desg_hi() <= util_desg_lo()) mem_init();    
+
     // Initialize utility functions
     util_init();
-
-    // See if we need to initialize the memory
-    if(util_desg_hi() <= util_desg_lo()) mem_init();
 
     // Allocate memory for the context and initialize it
     context_t* ctx = mem_sbrk(context_size());
