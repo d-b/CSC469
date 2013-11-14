@@ -305,7 +305,7 @@ static heap_t* superblock_heap_lock(volatile superblock_t* sb) {
     // The heap
     heap_t* heap;
 
-    // Heap functions
+    // Heap locking functions
     void heap_lock(heap_t* heap);
     void heap_unlock(heap_t* heap);
 
@@ -317,10 +317,10 @@ static heap_t* superblock_heap_lock(volatile superblock_t* sb) {
         // Lock the heap
         heap_lock(heap);
 
-        // Break if it is still the same
+        // Return the heap if it has not changed
         if(heap == sb->heap) return heap;
 
-        // Unlock the heap again
+        // Unlock the heap and try again
         heap_unlock(heap);
     }
 }
@@ -347,6 +347,18 @@ static void heap_init(heap_t* heap) {
     heap->mem_allocated = 0;
     int i; for(i = 0; i < ALLOC_HOARD_FULLNESS_GROUPS; i++)
         heap->bins[i] = NULL;
+}
+
+static superblock_t* heap_scan(heap_t* heap, int size_class) {
+    // Scan heap for a superblock of the given size class
+    superblock_t* sb = NULL; int group;
+    for(group = ALLOC_HOARD_FULLNESS_GROUPS - 1; group >= 0; group--) {
+        for(sb = heap->bins[group]; sb; sb = sb->next)
+            if(sb->size_class == size_class &&
+               sb->block_used <  sb->block_count) break;
+        // If a superblock was found break out
+        if(sb) break;
+    } return sb;
 }
 
 //
@@ -380,22 +392,19 @@ static superblock_t* context_superblock_find(context_t* ctx, void* ptr) {
     return (superblock_t*) ((char*) ctx->blocks_base + ((ptr - ctx->blocks_base) / size) * size);
 }
 
-static void* context_malloc(context_t* ctx, heap_t* heap, size_t sz) {
+static void* context_malloc(context_t* ctx, size_t sz) {
+    // Get the local heap and lock it
+    heap_t* heap = context_heap(ctx, util_gettid());
+    heap_lock(heap);
+
     // Allocated memory
     void* mem = NULL;
 
     // Compute size class
-    int sizecls = util_sizeclass(sz);
+    int size_class = util_sizeclass(sz);
 
-    // Scan heap for appropriate superblock
-    superblock_t* sb = NULL; int group;
-    for(group = ALLOC_HOARD_FULLNESS_GROUPS - 1; group >= 0; group--) {
-        for(sb = heap->bins[group]; sb; sb = sb->next)
-            if(sb->size_class == sizecls &&
-               sb->block_used <  sb->block_count) break;
-        // If a superblock was found break out
-        if(sb) break;
-    }
+    // Attempt to find an appropriate superblock in the local heap
+    superblock_t* sb = heap_scan(heap, size_class);
 
     // If no superblock was found
     if(!sb) {
@@ -407,16 +416,16 @@ static void* context_malloc(context_t* ctx, heap_t* heap, size_t sz) {
         for(sb = glob->bins[0]; sb; sb = sb->next) {
             // If the superblock is empty
             if(!sb->block_used) {
-                superblock_transform(sb, sizecls); break;
+                superblock_transform(sb, size_class); break;
             }
             // If the superblock matches requested size class
-            else if(sb->size_class == sizecls) break;
+            else if(sb->size_class == size_class) break;
         }
 
         // Transfer superblock to local heap
         if(sb) superblock_transfer(sb, heap);
         // If no superblock was found try to allocate a new one
-        else sb = superblock_allocate(heap, sizecls);
+        else sb = superblock_allocate(heap, size_class);
 
         // Unlock global heap
         heap_unlock(glob);
@@ -428,6 +437,8 @@ static void* context_malloc(context_t* ctx, heap_t* heap, size_t sz) {
         mem = superblock_block_data(sb, blk);
     }
 
+    // Unlock local heap and return memory
+    heap_unlock(heap);
     return mem;
 }
 
@@ -475,12 +486,8 @@ void *mm_malloc(size_t sz)
     if(sz > superblock_size()/2)
         return malloc(sz);
 
-    // Find current heap and allocate memory
-    context_t* ctx = get_context();
-    heap_t* heap = context_heap(ctx, util_gettid());
-    heap_lock(heap);
-        void* mem = context_malloc(ctx, heap, sz);
-    heap_unlock(heap); return mem;
+    // Allocate and return the memory
+    return context_malloc(get_context(), sz);
 }
 
 void mm_free(void *ptr)
