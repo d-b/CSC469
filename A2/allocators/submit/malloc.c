@@ -122,16 +122,16 @@ inline size_t util_pagealigned(size_t size) {
 
 inline int util_sizeclass(size_t size) {
     // Compute size class
-    size_t sizeunit = 1; size_t x = size;
-    int sizecls = 0; while(x >= ALLOC_HOARD_SIZE_CLASS_BASE) {
-        x        /= ALLOC_HOARD_SIZE_CLASS_BASE;
-        sizeunit *= ALLOC_HOARD_SIZE_CLASS_BASE;
-        sizecls  += 1;
+    size_t size_unit = 1; size_t x = size;
+    int size_class = 0; while(x >= ALLOC_HOARD_SIZE_CLASS_BASE) {
+        x          /= ALLOC_HOARD_SIZE_CLASS_BASE;
+        size_unit  *= ALLOC_HOARD_SIZE_CLASS_BASE;
+        size_class += 1;
     }
 
     // Check for remainder and return size class
-    if(size % sizeunit) sizecls += 1;
-    return (sizecls < ALLOC_HOARD_SIZE_CLASS_MIN) ? ALLOC_HOARD_SIZE_CLASS_MIN : sizecls;
+    if(size % size_unit) size_class += 1;
+    return (size_class < ALLOC_HOARD_SIZE_CLASS_MIN) ? ALLOC_HOARD_SIZE_CLASS_MIN : size_class;
 }
 
 //
