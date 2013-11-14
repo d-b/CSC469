@@ -87,6 +87,7 @@ size_t          util_system_pagesize;
 pthread_mutex_t util_allocator_lock;
 
 static void util_init(void) {
+    if(dseg_hi <= dseg_lo) mem_init();
     pthread_mutex_init(&util_allocator_lock, NULL);
     util_system_pagesize = mem_pagesize();
 }
@@ -300,6 +301,30 @@ static void superblock_block_free(superblock_t* sb, blockptr_t blk) {
     superblock_move(sb);
 }
 
+static heap_t* superblock_heap_lock(volatile superblock_t* sb) {
+    // The heap
+    heap_t* heap;
+
+    // Heap functions
+    void heap_lock(heap_t* heap);
+    void heap_unlock(heap_t* heap);
+
+    // Try to acquire the heap lock
+    for(;;) {
+        // Get the superblock's current heap
+        heap = sb->heap;
+
+        // Lock the heap
+        heap_lock(heap);
+
+        // Break if it is still the same
+        if(heap == sb->heap) return heap;
+
+        // Unlock the heap again
+        heap_unlock(heap);
+    }
+}
+
 //
 // Heap functions
 //
@@ -322,26 +347,6 @@ static void heap_init(heap_t* heap) {
     heap->mem_allocated = 0;
     int i; for(i = 0; i < ALLOC_HOARD_FULLNESS_GROUPS; i++)
         heap->bins[i] = NULL;
-}
-
-static heap_t* superblock_heap_lock(superblock_t* sb) {
-    // The heap
-    heap_t* heap;
-
-    // Try to acquire the heap lock
-    for(;;) {
-        // Get the superblock's current heap
-        heap = sb->heap;
-
-        // Lock the heap
-        heap_lock(heap);
-
-        // Break if it is still the same
-        if(heap == sb->heap) return heap;
-
-        // Unlock the heap again
-        heap_unlock(heap);
-    }
 }
 
 //
@@ -461,41 +466,6 @@ inline context_t* get_context(void) {
 }
 
 //
-// Debugging
-//
-
-void print_superblock(superblock_t* sb) {
-    printf("SB @ 0x%08x: CLS=%d, USED=%d, COUNT=%d\n",
-        (int)(intptr_t) sb,
-        (int)sb->size_class,
-        (int)sb->block_used,
-        (int)sb->block_count);
-}
-
-void print_heap_stats(heap_t* heap) {
-    printf("Heap #%d\n", heap->index);
-    printf("-------------------------\n");
-    printf("mem_used: %d\n", (int) heap->mem_used);
-    printf("mem_allocated: %d\n\n", (int) heap->mem_allocated);
-    int i; for(i = 0; i < ALLOC_HOARD_FULLNESS_GROUPS; i++) {
-        printf("BIN[%d]\n", i);
-        printf("--------------\n");
-        superblock_t* sb; for(sb = heap->bins[i]; sb; sb = sb->next)
-            print_superblock(sb);
-    }
-    printf("\n");
-}
-
-void print_context_stats(context_t* ctx) {
-    int i; for(i = 0; i < ctx->heap_count + 1; i++)
-        print_heap_stats(&ctx->heap_table[i]);
-}
-
-void print_stats() {
-    print_context_stats(get_context());
-}
-
-//
 // Library
 //
 
@@ -526,14 +496,11 @@ void mm_free(void *ptr)
 
 int mm_init(void)
 {
-    // See if we need to initialize the memory
-    if(util_desg_hi() <= util_desg_lo()) mem_init();    
-
     // Initialize utility functions
     util_init();
 
     // Allocate memory for the context and initialize it
-    context_t* ctx = mem_sbrk(context_size());
+    context_t* ctx = util_allocate(context_size());
     if(ctx == NULL) return -1;
     context_init(ctx);
     return 0;
