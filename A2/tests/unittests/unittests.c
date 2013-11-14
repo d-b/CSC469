@@ -18,15 +18,15 @@ int basic_check(void){
     void *ptr;
     int i; for(i = 0; before <= 4096; i++) {
         ptr = mm_malloc(before);
-        printf("%d bytes allocated\n", before);
+        printf("%d bytess allocated\n", before);
         mm_free(ptr);
-        printf("%d bytes freed\n", before);
+        printf("%d bytess freed\n", before);
         before = before * 2;
     } 
     return 0;
 }
 
-int coherency_check(int size){
+int basic_coherency_check(int size){
     int i = 0;
     printf("Coherency check on %d bytes\n", size*4);
     int* array = mm_malloc(size * sizeof(int));
@@ -44,11 +44,62 @@ int coherency_check(int size){
     return 0;
 }
 
+int coherency_check(int depth){
+
+   
+    printf("Begin Suberblock coherency check\n");
+    /* psudo random int in Superblock range */
+    int r = rand() % 2046 ;
+	    (void) r;
+     int* rand_array = malloc(r * sizeof(int));
+	char** ptr_array = malloc(r * sizeof(char *));
+
+	int i;
+	for (i=0; i < r; i++){
+			rand_array[i] =  rand() % r; 
+	}
+	for (i=0; i<depth/2 ; i++){
+			ptr_array[i] = mm_malloc(rand() % 2046);
+	}
+
+	int* test = mm_malloc(r * sizeof(int));
+    	for (i=0; i < r; i++) test[i] = rand_array[i];	
+        for (i=(depth/2+1); i<depth ; i++){
+                        ptr_array[i] = mm_malloc(rand() % 2046);
+        }
+        for (i=0; i<depth/2 ; i++){
+                        mm_free(ptr_array[i]);
+        }
+        for (i=0; i < r; i++){
+ 		
+		if(test[i] != rand_array[i]){
+			printf("\nFAILED %d != %d\n", test[i], rand_array[i]);
+		}     
+	 	   
+	}
+
+        for (i=(depth/2+1); i<depth ; i++){
+                        mm_free(ptr_array[i]);
+        }
+
+        for (i=0; i < r; i++){
+                    printf(".");
+                if(test[i] != rand_array[i]){
+                        printf("\nFAILED %d != %d\n", test[i], rand_array[i]);
+                }     
+                   
+        }
+	printf("\nPASSED\n");
+return 0;	
+	
+}
+
 int main (int argc, char* argv[]) {
     mm_init();
     basic_check();
-    coherency_check(100);
-    coherency_check(500);
-    coherency_check(2000);
-    return 0;
+    basic_coherency_check(100);
+    basic_coherency_check(500);
+    basic_coherency_check(2000);
+    coherency_check(200);    
+return 0;
 }
