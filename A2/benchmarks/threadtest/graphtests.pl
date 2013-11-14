@@ -2,9 +2,10 @@
 
 use strict;
 
+my $dir=".";
 my $graphtitle = "threadtest - runtimes";
 
-my @namelist = ("libc", "kheap", "cmu", "submit");
+my @namelist = ("libc", "kheap", "submit");
 my %names;
 
 # This allows you to give each series a name on the graph
@@ -19,15 +20,18 @@ my $name;
 my $base;
 my %scalability;
 my %fragmentation;
-my $reqd_mem = 4096; # Min amt of memory for test, for any no. of threads
+my %baseline;
+
+my $reqd_mem = 12288; # Min amt of memory for test, for any no. of threads
+my $reftime = 0.419;
 my $nthread = 8;
 
 foreach $name (@namelist) {
-    open G, "> Results/$name/data";
-    $base = 0;
+    open G, "> $dir/Results/$name/data";
+    $baseline{$name} = 0;
     $scalability{$name} = 0;
     for (my $i = 1; $i <= 8; $i++) {
-	open F, "Results/$name/threadtest-$i";
+	open F, "$dir/Results/$name/threadtest-$i";
 	my $total = 0;
 	my $count = 0;
 	my $min = 1e30;
@@ -69,12 +73,14 @@ foreach $name (@namelist) {
 	    #	   print G "$i\t$avg\t$min\t$max\n";
 	    print G "$i\t$min\n";
 	    $avg = $mem_total / $count;
-	    $fragmentation{$name} += $avg / $reqd_mem;
+	    $fragmentation{$name} += $reqd_mem / $avg;
 	    if ($i == 1) {
-		$base = $min;
+		$baseline{$name} = $min;
 	    } elsif ($i < 8) {	# don't count 8 thread case
-		my $speedup = $base / $min;
+		my $speedup = $baseline{$name} / $min;
 		$scalability{$name} += $speedup / $i;
+		my $contrib = $speedup/$i;
+		print "i=$i, speedup[i]=$speedup, contrib=$contrib\n";
 	    }
 	} else {
 	    print "oops count is zero, $name, threadtest-$i\n";
@@ -83,6 +89,13 @@ foreach $name (@namelist) {
 	close F;
     }
     close G;
+
+    $scalability{$name} /= 6.0;
+    $fragmentation{$name} /= $nthread;
+    print "name = $name\n";
+    printf "\tsequential speed = %.3f\n",$reftime/$baseline{$name};
+    printf "\tscalability score = %.3f\n",$scalability{$name};
+    printf "\tfragmentation score = %.3f\n\n",$fragmentation{$name};
 }
 
 open PLOT, "|gnuplot";
@@ -96,10 +109,6 @@ print PLOT "set yrange [0:*]\n";
 print PLOT "plot ";
 
 foreach $name (@namelist) {
-    $scalability{$name} /= 6.0;
-    $fragmentation{$name} /= $nthread;
-    printf "name = $name\n\tscalability score %.3f\n",$scalability{$name};
-    printf "\tfragmentation score = %.3f\n\n",$fragmentation{$name};
     my $titlename = $names{$name};
     if ($name eq $namelist[-1]) {
 	print PLOT "\"Results/$name/data\" title \"$titlename\" with linespoints\n";

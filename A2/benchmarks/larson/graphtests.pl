@@ -1,13 +1,12 @@
-#!/usr/local/bin/perl
+#!/usr/bin/perl
 
-# Expect 1 argument to be cdf login name of submitter
 
 use strict;
+my $dir=".";
 
 my $graphtitle = "Larson throughput";
 
-#my @namelist = ("libc", "kheap", "cmu");
-my @namelist = ("libc", "submitted");
+my @namelist = ("libc", "kheap", "submit");
 my %names;
 
 # This allows you to give each series a name on the graph
@@ -16,25 +15,25 @@ my %names;
 $names{"libc"} = "libc";
 $names{"kheap"} = "kheap";
 $names{"cmu"} = "cmu";
-$names{"submitted"} = $ARGV[0];
+$names{"submit"} = "submit";
 
+my @reqd_mem = (240000, 480000, 720000, 960000,
+  	     	1200000, 1440000, 1680000, 1920000);
 
 my $name;
-my $base;
+my %baseline;
 my %scalability;
 my %fragmentation;
-my @reqd_mem = (240000, 480000, 720000, 960000,
-		1200000, 1440000, 1680000, 1920000);
-
+my $reftime = 0.000000394;
 my $nthread = 8;
 
 foreach $name (@namelist) {
-    open G, "> Results/$name/data";
-    $base = 0;
+    open G, "> $dir/Results/$name/data";
+    $baseline{$name} = 0;
     $scalability{$name} = 0;
     $fragmentation{$name} = 0;
     for (my $i = 1; $i <= $nthread; $i++) {
-	open F, "Results/$name/larson-$i";
+	open F, "$dir/Results/$name/larson-$i";
 	my $total = 0;
 	my $count = 0;
 	my $min = 1e30;
@@ -74,13 +73,12 @@ foreach $name (@namelist) {
 	    my $avg = $total / $count;
 	    print G "$i\t$avg\t$min\t$max\n";
 	    $avg = $mem_total / $count;
-	    print "i = $i, memory used: $avg avg, $mem_min min, $mem_max max\n";
-	    $fragmentation{$name} += $avg / $reqd_mem[$i-1];
+	    $fragmentation{$name} += $reqd_mem[$i-1] / $avg;
 
 	    if ($i == 1) {
-		$base = $max; # For throughput, higher is better, take max
+		$baseline{$name} = $max; # For throughput, higher is better, take max
 	    } elsif ($i < $nthread) {	# don't count max thread case
-		my $speedup = $max / $base;
+		my $speedup = $max / $baseline{$name};
 		$scalability{$name} += $speedup / $i;
 	    }
 	} else {
@@ -90,6 +88,15 @@ foreach $name (@namelist) {
 	close F;
     }
     close G;
+
+    $scalability{$name} /= 6.0;
+    $fragmentation{$name} /= $nthread;
+    print "name = $name\n";
+    printf "\tsequential speed = %.3f\n",$reftime/(1.0/$baseline{$name});
+    printf "\tscalability score = %.3f\n",$scalability{$name};
+    printf "\tfragmentation score = %.3f\n\n",$fragmentation{$name};
+    close SCORE;
+
 }
 
 open PLOT, "|gnuplot";
@@ -102,10 +109,6 @@ print PLOT "set xrange [0:17]\n";
 print PLOT "plot ";
 
 foreach $name (@namelist) {
-    $scalability{$name} /= 6.0;
-    $fragmentation{$name} /= $nthread;
-    printf "name = $name\n\tscalability score %.3f\n",$scalability{$name};
-    printf "\tfragmentation score = %.3f\n\n",$fragmentation{$name};
     my $titlename = $names{$name};
     if ($name eq $namelist[-1]) {
 	print PLOT "\"Results/$name/data\" title \"$titlename\" with linespoints\n";

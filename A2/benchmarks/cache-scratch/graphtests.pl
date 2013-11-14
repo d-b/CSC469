@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 
 use strict;
+my $dir=".";
 
 my $graphtitle = "passive-false runtimes";
 
@@ -16,19 +17,21 @@ $names{"cmu"} = "cmu";
 $names{"submit"} = "submit";
 
 my $name;
-my $base;
+my %baseline;
 my %scalability;
 my %fragmentation;
 my $reqd_mem = 4096; # min memory needed = 1 page, for any no. of threads
+my $reftime = 1.607;
+
 my $nthread = 8;
 
 foreach $name (@namelist) {
-    open G, "> Results/$name/data";
-    $base = 0;
+    open G, "> $dir/Results/$name/data";
+    $baseline{$name} = 0;
     $scalability{$name} = 0;
     $fragmentation{$name} = 0;
     for (my $i = 1; $i <= $nthread; $i++) {
-	open F, "Results/$name/cache-scratch-$i";
+	open F, "$dir/Results/$name/cache-scratch-$i";
 	my $total = 0;
 	my $count = 0;
 	my $min = 1e30;
@@ -70,11 +73,11 @@ foreach $name (@namelist) {
 	    #	   print G "$i\t$avg\t$min\t$max\n";
 	    print G "$i\t$min\n";
 	    $avg = $mem_total / $count;
-	    $fragmentation{$name} += $avg / $reqd_mem;
+	    $fragmentation{$name} += $reqd_mem / $avg;
 	    if ($i == 1) {
-		$base = $min;
+		$baseline{$name} = $min;
 	    } elsif ($i < 8) {	# don't count 8 thread case
-		my $speedup = $base / $min;
+		my $speedup = $baseline{$name} / $min;
 		$scalability{$name} += $speedup / $i;
 	    }
 
@@ -84,6 +87,13 @@ foreach $name (@namelist) {
 	close F;
     }
     close G;
+
+    $scalability{$name} /= 6.0;
+    $fragmentation{$name} /= $nthread;
+    print "name = $name\n";
+    printf "\tsequential speed = %.3f\n",$reftime/$baseline{$name};
+    printf "\tscalability score = %.3f\n",$scalability{$name};
+    printf "\tfragmentation score = %.3f\n\n",$fragmentation{$name};
 }
 
 open PLOT, "|gnuplot";
@@ -97,10 +107,6 @@ print PLOT "set yrange [0:*]\n";
 print PLOT "plot ";
 
 foreach $name (@namelist) {
-    $scalability{$name} /= 6.0;
-    $fragmentation{$name} /= $nthread;
-    printf "name = $name\n\tscalability score %.3f\n",$scalability{$name};
-    printf "\tfragmentation score = %.3f\n\n",$fragmentation{$name};
     my $titlename = $names{$name};
     if ($name eq $namelist[-1]) {
 	print PLOT "\"Results/$name/data\" title \"$titlename\" with linespoints\n";
