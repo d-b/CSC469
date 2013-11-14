@@ -51,7 +51,6 @@ typedef int32_t blockptr_t;
 
 // Superblock structure
 struct SUPERBLOCK_T {
-    pthread_mutex_t lock;
     heap_t*         heap;
     uint8_t         group;
     int             size_class;
@@ -106,10 +105,7 @@ inline void* util_desg_lo() {
 }
 
 inline void* util_desg_hi() {
-    pthread_mutex_lock(&util_allocator_lock);
-    void* mem = dseg_hi;
-    pthread_mutex_unlock(&util_allocator_lock);
-    return mem;
+    return dseg_hi;
 }
 
 inline size_t util_pagealigned(size_t size) {
@@ -143,14 +139,6 @@ inline size_t superblock_size(void) {
     return mem_pagesize();
 }
 
-inline void superblock_lock(superblock_t* sb) {
-    pthread_mutex_lock(&sb->lock);
-}
-
-inline void superblock_unlock(superblock_t* sb) {
-    pthread_mutex_unlock(&sb->lock);
-}
-
 static void superblock_link(superblock_t* sb, heap_t* heap, int group) {
     // Set new heap and group
     sb->heap = heap;
@@ -174,10 +162,8 @@ static void superblock_unlink(superblock_t* sb) {
     sb->prev = sb->next = NULL;
 }
 
-static void superblock_init(superblock_t* sb, heap_t* heap, int size_class) {
-    // Initialize lock
-    pthread_mutex_init(&sb->lock, NULL);
 
+static void superblock_transform(superblock_t* sb, int size_class) {
     // Set size class
     sb->size_class = size_class;
 
@@ -192,32 +178,21 @@ static void superblock_init(superblock_t* sb, heap_t* heap, int size_class) {
     sb->block_count = superblock_size() / sb->block_size;
     sb->next_block  = 0;
     sb->next_free   = BLOCK_INVALID;
-    sb->prev        = NULL;
-    sb->next        = NULL;
+}
+
+static void superblock_init(superblock_t* sb, heap_t* heap, int size_class) {
+    // Transform the superblock into the specified size class
+    superblock_transform(sb, size_class);
+
+    // Set initials
+    sb->prev = NULL;
+    sb->next = NULL;
 
     // Perform link
     superblock_link(sb, heap, 0);
 
     // Update heap statistics
     sb->heap->mem_allocated += sb->block_count * sb->block_size;
-}
-
-static void superblock_transform(superblock_t* sb, int size_class) {
-    // Only valid for empty superblocks
-    assert(sb->block_used == 0);
-
-    // Set size class
-    sb->size_class = size_class;
-
-    // Compute block size
-    sb->block_size = 1;
-    int i; for(i = 0; i < sb->size_class; i++)
-        sb->block_size *= ALLOC_HOARD_SIZE_CLASS_BASE;
-
-    // Set initials
-    sb->block_count = superblock_size() / sb->block_size;
-    sb->next_block  = 0;
-    sb->next_free   = BLOCK_INVALID;
 }
 
 static superblock_t* superblock_allocate(heap_t* heap, int size_class) {
@@ -239,8 +214,11 @@ static int superblock_group(superblock_t* sb) {
 }
 
 static void superblock_move(superblock_t* sb) {
-    superblock_unlink(sb);
-    superblock_link(sb, sb->heap, superblock_group(sb));
+    int group = superblock_group(sb);
+    if(group != sb->group) {
+        superblock_unlink(sb);
+        superblock_link(sb, sb->heap, group);
+    }
 }
 
 static void superblock_transfer(superblock_t* sb, heap_t* heap) {
@@ -347,21 +325,14 @@ static heap_t* superblock_heap_lock(superblock_t* sb) {
 
     // Try to acquire the heap lock
     for(;;) {
-        // Get the current heap
-        superblock_lock(sb);
+        // Get the superblock's current heap
         heap = sb->heap;
-        superblock_unlock(sb);
 
         // Lock the heap
         heap_lock(heap);
 
-        // Get the new heap
-        superblock_lock(sb);
-        heap_t* heapnew = sb->heap;
-        superblock_unlock(sb);
-
-        // Break if they match
-        if(heap == heapnew) return heap;
+        // Break if it is still the same
+        if(heap == sb->heap) return heap;
 
         // Unlock the heap again
         heap_unlock(heap);
@@ -433,11 +404,7 @@ static void* context_malloc(context_t* ctx, heap_t* heap, size_t sz) {
         }
 
         // Transfer superblock to local heap
-        if(sb) {
-            superblock_lock(sb);
-            superblock_transfer(sb, heap);
-            superblock_unlock(sb);
-        }
+        if(sb) superblock_transfer(sb, heap);
         // If no superblock was found try to allocate a new one
         else sb = superblock_allocate(heap, sizecls);
 
@@ -470,9 +437,7 @@ static void context_free(context_t* ctx, void* ptr) {
         heap_lock(glob);
 
         // Perform the transfer
-        superblock_lock(sb);
         superblock_transfer(sb, glob);
-        superblock_unlock(sb);
 
         // Unlock the global heap
         heap_unlock(glob);
