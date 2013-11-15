@@ -72,7 +72,7 @@ Instructor: & Professor Angela Demke Brown % Instructor/supervisor
 \noindent
 \textbf{Blowup}
 \\
-\indent  Utilizing an \textit{emptyness threshold} which can be experimentally set, we divide the Superblocks in a specific per processor heap by \textit{fullness groups}.  When a heap drops below the emptyness threshold, we transfer a superblock that is at least emptyness threshold empty from the appropriate \textit{fullnes bin} back to the Global heap of free Superblocks.  By implementing this threshold, the invarient that Berger et. al. used in their experiments in their canonical paper holds (Berger et. el.).  Namely when we remove a superblock we reduce the amount of memory in use \textit{ui} by at most (1-\textit{emptyness threshold}), but we reduce the amount of memory allocated by Hoard from the Operating System \textit{ai} by \textit{S} the size of a superblock.   Maintaining this invarient bounds blowup to a constant factor (Berger et. el.).  
+\indent  Utilizing an \textit{emptyness threshold} which can be experimentally set, we divide the Superblocks in a specific per processor heap by \textit{fullness groups}.  When a heap drops below the emptyness threshold \textit(f), and there are more than \textit(K) Superblocks worth of free memory on the heap, we transfer a superblock that is at least \textit(f) empty from the appropriate \textit{fullnes bin} back to the Global heap of free Superblocks.  By implementing this threshold, the invarient that Berger et. al. used in their experiments in their canonical paper holds (Berger et. el.).  Namely when we remove a superblock we reduce the amount of memory in use \textit{ui} by at most (1-\textit{emptyness threshold}), but we reduce the amount of memory allocated by Hoard from the Operating System \textit{ai} by \textit{S} the size of a superblock.   Maintaining this invarient bounds blowup to a constant factor (Berger et. el.).  
 \\
 \\
 \textbf{Locality}
@@ -181,6 +181,7 @@ struct CONTEXT\_T \{
 \\
 Results of Larson test Submit:
 \\
+\texttt{
 greywolf:~/469/CSC469/A2/benchmarks/larson\$  ./larson-submit $<$ Input/small-6-threads
 \\
 Multi-threaded test driver 
@@ -217,11 +218,12 @@ thread stopping.
 \\
 thread stopping.
 \\
-Done sleeping...
+Done sleeping...}
 \\
 \\
 Results of Larson test kheapt:
 \\
+\texttt{
 greywolf:~/469/CSC469/A2/benchmarks/larson\$  ./larson-kheap $<$ Input/small-6-threads
 \\
 Multi-threaded test driver 
@@ -259,9 +261,38 @@ Throughput =    30192 operations per second.
 Memory used = 25997311 bytes, required 1440000, ratio 18.053688
 \\
 Done sleeping...
+}
 \\
 \\
-
+\begin{figure}[!p]
+\centering
+\includegraphics[width=10cm]{larson.pdf}
+\caption{Larson}
+\label{Larson}
+\end{figure}
+\\
+\begin{figure}[!p]
+\centering
+\includegraphics[width=10cm]{cache-scratch.pdf}
+\caption{Cache-scratch}
+\label{Cache-scratch}
+\end{figure}
+\\
+\begin{figure}[!p]
+\centering
+\includegraphics[width=10cm]{cache-thrash.pdf}
+\caption{Cache-thrash}
+\label{cache-thrash}
+\end{figure}
+\\
+\begin{figure}[!p]
+\centering
+\includegraphics[width=10cm]{threadtest.pdf}
+\caption{Threadtest}
+\label{Threadtest}
+\end{figure}
+\\
+\newpage
 \noindent
 \textbf{Scalability}
 \\
