@@ -69,27 +69,30 @@ struct HEAP_T {
     int             index;
     size_t          mem_used;
     size_t          mem_allocated;
-    superblock_t*   bins[ALLOC_HOARD_FULLNESS_GROUPS];
+    superblock_t*   bins[1][ALLOC_HOARD_FULLNESS_GROUPS];
 };
 
 // Allocator context
 struct CONTEXT_T {
     void*           blocks_base;
     int             heap_count;
-    heap_t          heap_table[1];
+    char            heap_table[1];
 };
 
 //
 // Utility functions
 //
 
-size_t          util_system_pagesize;
-pthread_mutex_t util_allocator_lock;
+size_t          global_util_pagesize;
+int             global_util_sizeclasses;
+pthread_mutex_t global_util_allocator_lock;
 
 static void util_init(void) {
+    int util_sizeclass(size_t size);
     if(dseg_hi <= dseg_lo) mem_init();
-    pthread_mutex_init(&util_allocator_lock, NULL);
-    util_system_pagesize = mem_pagesize();
+    pthread_mutex_init(&global_util_allocator_lock, NULL);
+    global_util_pagesize = mem_pagesize();
+    global_util_sizeclasses = util_sizeclass(global_util_pagesize);
 }
 
 inline pid_t util_gettid(void) {
@@ -97,9 +100,9 @@ inline pid_t util_gettid(void) {
 }
 
 inline void* util_allocate(size_t size) {
-    pthread_mutex_lock(&util_allocator_lock);
+    pthread_mutex_lock(&global_util_allocator_lock);
     void* mem = mem_sbrk(size);
-    pthread_mutex_unlock(&util_allocator_lock);
+    pthread_mutex_unlock(&global_util_allocator_lock);
     return mem;
 }
 
@@ -112,12 +115,16 @@ inline void* util_desg_hi() {
 }
 
 inline size_t util_pagesize() {
-    return util_system_pagesize;
+    return global_util_pagesize;
 }
 
 inline size_t util_pagealigned(size_t size) {
     size_t page_size = util_pagesize();
     return ((size + page_size - 1)/page_size)*page_size;
+}
+
+inline int util_sizeclasses() {
+    return global_util_sizeclasses;
 }
 
 inline int util_sizeclass(size_t size) {
@@ -134,6 +141,10 @@ inline int util_sizeclass(size_t size) {
     return (size_class < ALLOC_HOARD_SIZE_CLASS_MIN) ? ALLOC_HOARD_SIZE_CLASS_MIN : size_class;
 }
 
+inline int util_heapcount() {
+    return getNumProcessors() * ALLOC_HOARD_HEAP_CPU_FACTOR;
+}
+
 //
 // Superblock functions
 //
@@ -146,22 +157,23 @@ inline size_t superblock_size(void) {
     return util_pagesize();
 }
 
-static void superblock_link(superblock_t* sb, heap_t* heap, int group) {
+static void superblock_link(superblock_t* sb, heap_t* heap, int group, int size_class) {
     // Set new heap and group
     sb->heap = heap;
     sb->group = group;
+    sb->size_class = size_class;
 
     // Perform standard link operation
-    if(sb->heap->bins[sb->group])
-        sb->heap->bins[sb->group]->prev = sb;
-    sb->next = sb->heap->bins[sb->group];
-    sb->heap->bins[sb->group] = sb;
+    superblock_t* head = sb->heap->bins[size_class][group];
+    sb->heap->bins[size_class][group] = sb;
+    if(head) head->prev = sb;
+    sb->next = head;
 }
 
 static void superblock_unlink(superblock_t* sb) {
     // See if we were the head
-    if(sb->heap->bins[sb->group] == sb)
-        sb->heap->bins[sb->group] = sb->next;
+    if(sb->heap->bins[sb->size_class][sb->group] == sb)
+        sb->heap->bins[sb->size_class][sb->group] = sb->next;
 
     // Perform standard unlink operation
     if(sb->prev) sb->prev->next = sb->next;
@@ -170,6 +182,9 @@ static void superblock_unlink(superblock_t* sb) {
 }
 
 static void superblock_transform(superblock_t* sb, int size_class) {
+    // Start by unlinking
+    superblock_unlink(sb);
+
     // Set size class
     sb->size_class = size_class;
 
@@ -184,18 +199,19 @@ static void superblock_transform(superblock_t* sb, int size_class) {
     sb->block_count = superblock_size() / sb->block_size;
     sb->next_block  = 0;
     sb->next_free   = BLOCK_INVALID;
+
+    // Perform the link
+    superblock_link(sb, sb->heap, 0, size_class);
 }
 
 static void superblock_init(superblock_t* sb, heap_t* heap, int size_class) {
+    // Set the initials
+    sb->heap = heap;
+    sb->prev = NULL;
+    sb->next = NULL;    
+
     // Transform the superblock into the specified size class
     superblock_transform(sb, size_class);
-
-    // Set initials
-    sb->prev = NULL;
-    sb->next = NULL;
-
-    // Perform link
-    superblock_link(sb, heap, 0);
 
     // Update heap statistics
     sb->heap->mem_allocated += sb->block_count * sb->block_size;
@@ -221,9 +237,9 @@ static int superblock_group(superblock_t* sb) {
 
 static void superblock_move(superblock_t* sb) {
     int group = superblock_group(sb);
-    if(sb->heap->bins[group] != sb) {
+    if(sb->heap->bins[sb->size_class][group] != sb) {
         superblock_unlink(sb);
-        superblock_link(sb, sb->heap, group);
+        superblock_link(sb, sb->heap, group, sb->size_class);
     }
 }
 
@@ -243,7 +259,7 @@ static void superblock_transfer(superblock_t* sb, heap_t* heap) {
     // Link to new heap
     heap->mem_used += used;
     heap->mem_allocated += allocated;
-    superblock_link(sb, heap, sb->group);
+    superblock_link(sb, heap, sb->group, sb->size_class);
 }
 
 inline blockptr_t superblock_block_find(superblock_t* sb, void* ptr) {
@@ -329,6 +345,11 @@ static heap_t* superblock_heap_lock(volatile superblock_t* sb) {
 // Heap functions
 //
 
+inline size_t heap_size() {
+    return sizeof(heap_t)
+        +  sizeof(superblock_t*) * ALLOC_HOARD_FULLNESS_GROUPS * util_sizeclasses();
+}
+
 inline void heap_lock(heap_t* heap) {
     pthread_mutex_lock(&heap->lock);
 }
@@ -341,21 +362,18 @@ inline int heap_is_fluid(heap_t* heap) {
     return (heap->mem_allocated - heap->mem_used) > (superblock_size() * ALLOC_HOARD_MIN_SUPERBLOCKS);
 }
 
-static void heap_init(heap_t* heap) {
+static void heap_init(heap_t* heap, int index) {
+    memset(heap, 0, heap_size());
     pthread_mutex_init(&heap->lock, NULL);
-    heap->mem_used = 0;
-    heap->mem_allocated = 0;
-    int i; for(i = 0; i < ALLOC_HOARD_FULLNESS_GROUPS; i++)
-        heap->bins[i] = NULL;
+    heap->index = index;
 }
 
 static superblock_t* heap_scan(heap_t* heap, int size_class) {
     // Scan heap for a superblock of the given size class
     superblock_t* sb = NULL; int group;
     for(group = ALLOC_HOARD_FULLNESS_GROUPS - 1; group >= 0; group--) {
-        for(sb = heap->bins[group]; sb; sb = sb->next)
-            if(sb->size_class == size_class &&
-               sb->block_used <  sb->block_count) break;
+        for(sb = heap->bins[size_class][group]; sb; sb = sb->next)
+            if(sb->block_used < sb->block_count) break;
         // If a superblock was found break out
         if(sb) break;
     } return sb;
@@ -366,25 +384,28 @@ static superblock_t* heap_scan(heap_t* heap, int size_class) {
 //
 
 inline size_t context_size() {
-    size_t size = sizeof(context_t) + sizeof(heap_t) * getNumProcessors() * ALLOC_HOARD_HEAP_CPU_FACTOR;
+    size_t size = sizeof(context_t) - sizeof(char)
+                + heap_size() * (util_heapcount() + 1); // Add 1 for global heap
     return util_pagealigned(size);
+}
+
+inline heap_t* context_heap(context_t* ctx, int index) {
+    return (heap_t*) (ctx->heap_table + heap_size() * index);
+}
+
+inline heap_t* context_globalheap(context_t* ctx) {
+    return context_heap(ctx, 0);
+}
+
+inline heap_t* context_localheap(context_t* ctx, uint32_t threadid) {
+    return context_heap(ctx, 1 + (threadid % ctx->heap_count));
 }
 
 static void context_init(context_t* ctx) {
     ctx->blocks_base = (char*) ctx + context_size();
-    ctx->heap_count = getNumProcessors() * ALLOC_HOARD_HEAP_CPU_FACTOR;
-    int i; for(i = 0; i <= ctx->heap_count; i++) {
-        heap_init(&ctx->heap_table[i]);
-        ctx->heap_table[i].index = i;
-    }
-}
-
-static heap_t* context_globalheap(context_t* ctx) {
-    return &ctx->heap_table[0];
-}
-
-static heap_t* context_heap(context_t* ctx, uint32_t threadid) {
-    return &ctx->heap_table[1 + (threadid % ctx->heap_count)];
+    ctx->heap_count  = util_heapcount();
+    int i; for(i = 0; i <= ctx->heap_count; i++)
+        heap_init(context_heap(ctx, i), i);
 }
 
 static superblock_t* context_superblock_find(context_t* ctx, void* ptr) {
@@ -394,7 +415,7 @@ static superblock_t* context_superblock_find(context_t* ctx, void* ptr) {
 
 static void* context_malloc(context_t* ctx, size_t sz) {
     // Get the local heap and lock it
-    heap_t* heap = context_heap(ctx, util_gettid());
+    heap_t* heap = context_localheap(ctx, util_gettid());
     heap_lock(heap);
 
     // Allocated memory
@@ -412,18 +433,17 @@ static void* context_malloc(context_t* ctx, size_t sz) {
         heap_t* glob = context_globalheap(ctx);
         heap_lock(glob);
 
-        // Try to find a suitable superblock on the global heap
-        for(sb = glob->bins[0]; sb; sb = sb->next) {
-            // If the superblock is empty
-            if(!sb->block_used) {
-                superblock_transform(sb, size_class); break;
-            }
-            // If the superblock matches requested size class
-            else if(sb->size_class == size_class) break;
-        }
+        // Head of the size class bin on the global heap
+        sb = glob->bins[size_class][0];
 
-        // Transfer superblock to local heap
-        if(sb) superblock_transfer(sb, heap);
+        // See if there is superblock block available on the global heap
+        if(sb) {
+            // If it is empty transform it
+            if(!sb->block_used) superblock_transform(sb, size_class);
+
+            // Transfer it to the local heap
+            superblock_transfer(sb, heap);
+        }
         // If no superblock was found try to allocate a new one
         else sb = superblock_allocate(heap, size_class);
 
@@ -443,7 +463,7 @@ static void* context_malloc(context_t* ctx, size_t sz) {
 }
 
 static void context_free(context_t* ctx, void* ptr) {
-    // Find superblock
+    // Find superblock and lock its heap
     superblock_t* sb = context_superblock_find(ctx, ptr);
     heap_t* heap = superblock_heap_lock(sb);
 
@@ -464,7 +484,7 @@ static void context_free(context_t* ctx, void* ptr) {
         heap_unlock(glob);
     }
 
-    // Unlock the heap
+    // Unlock the superblock's heap
     heap_unlock(heap);
 }
 
