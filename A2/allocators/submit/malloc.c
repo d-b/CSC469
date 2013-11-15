@@ -633,7 +633,7 @@ static void* context_malloc(context_t* ctx, size_t sz) {
     // See if we are allocating a large block
     if(sz > superblock_size()/2)
         return context_largeblock_malloc(ctx, sz);
-    // Otherwise do a standard superblock style allocation
+    // Otherwise perform a standard allocation
     else return context_superblock_malloc(ctx, sz);
 }
 
@@ -643,7 +643,7 @@ static void context_free(context_t* ctx, void* ptr) {
     // If it is a normal allocation
     if(alloc->type == ALLOCATION_NORMAL)
         context_superblock_free(ctx, &alloc->sb, ptr);
-    // Otherwise perform call the large block handler
+    // Otherwise perform a large block deallocation
     else context_largeblock_free(ctx, &alloc->lb, ptr);
 }
 
