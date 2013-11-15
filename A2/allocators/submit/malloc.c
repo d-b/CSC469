@@ -34,20 +34,33 @@
 //
 
 // Forward declarations
+struct LARGEBLOCK_T;
 struct SUPERBLOCK_T;
 struct HEAP_T;
 struct CONTEXT_T;
 
 // Types
+typedef struct LARGEBLOCK_T largeblock_t;
 typedef struct SUPERBLOCK_T superblock_t;
+typedef struct ALLOCATION_T allocation_t;
 typedef struct HEAP_T heap_t;
 typedef struct CONTEXT_T context_t;
+
+// Allocation type
+enum E_ALLOCATION { ALLOCATION_NORMAL, ALLOCATION_LARGE };
 
 // Invalid block
 enum E_BLOCK { BLOCK_INVALID = -1 };
 
 // Block pointer type
 typedef int32_t blockptr_t;
+
+// Largeblock structure
+struct LARGEBLOCK_T {
+    size_t block_count;
+    largeblock_t* prev;
+    largeblock_t* next;
+};
 
 // Superblock structure
 struct SUPERBLOCK_T {
@@ -61,6 +74,15 @@ struct SUPERBLOCK_T {
     blockptr_t      next_free;
     superblock_t*   prev;
     superblock_t*   next;
+};
+
+// Allocation structure
+struct ALLOCATION_T {
+    int type;
+    union {
+        superblock_t sb;
+        largeblock_t lb;
+    };
 } __attribute__((aligned(ARCH_CACHE_ALIGNMENT)));
 
 // Heap
@@ -75,6 +97,8 @@ struct HEAP_T {
 // Allocator context
 struct CONTEXT_T {
     void*           blocks_base;
+    pthread_mutex_t largeblock_lock;
+    largeblock_t*   largeblock_next;    
     int             heap_count;
     char            heap_table[1];
 };
@@ -146,15 +170,101 @@ inline int util_heapcount() {
 }
 
 //
+// Allocation functions
+//
+
+inline size_t allocation_size(void) {
+    return util_pagesize() + sizeof(allocation_t);
+}
+
+
+//
+// Largeblock functions
+//
+
+inline void largeblock_lock(context_t* ctx) {
+    pthread_mutex_lock(&ctx->largeblock_lock);
+}
+
+inline void largeblock_unlock(context_t* ctx) {
+    pthread_mutex_unlock(&ctx->largeblock_lock);
+}
+
+inline size_t largeblock_size(largeblock_t* lb) {
+    return lb->block_count * allocation_size() - sizeof(largeblock_t);
+}
+
+inline void* largeblock_data(largeblock_t* lb) {
+    return (void*) ((char*) lb + sizeof(largeblock_t));
+}
+
+inline size_t largeblock_blocks(size_t size) {
+    if(size == 0) return 0;
+    size_t blocks = 1;
+    size_t alloc_size = allocation_size();
+    size -= allocation_size() - sizeof(largeblock_t);
+    if(size > 0) blocks += ((size + alloc_size - 1)/alloc_size);
+    return blocks;
+}
+
+static void largeblock_link(largeblock_t* lb, context_t* ctx) {
+    lb->next = ctx->largeblock_next;
+    if(ctx->largeblock_next)
+        ctx->largeblock_next->prev = lb;
+    ctx->largeblock_next = lb;
+}
+
+static void largeblock_unlink(largeblock_t* lb, context_t* ctx) {
+    // See if we were the head
+    if(ctx->largeblock_next == lb)
+        ctx->largeblock_next = lb->next;
+
+    // Perform standard unlink operation
+    if(lb->prev) lb->prev->next = lb->next;
+    if(lb->next) lb->next->prev = lb->prev;
+    lb->prev = lb->next = NULL;
+}
+
+
+static largeblock_t* largeblock_allocate(context_t* ctx, size_t size) {
+    // Scan for the smallest suitable free large block
+    largeblock_t* min = NULL;
+    largeblock_t* lb; for(lb = ctx->largeblock_next; lb; lb = lb->next) {
+        if(size <= largeblock_size(lb)) {
+            if(!min) min = lb;
+            else if(lb->block_count < min->block_count) min = lb;
+        }
+    }
+
+    // See if a largeblock was found
+    if(min) lb = min;
+
+    // If none was found, try to allocate one
+    if(!lb) {
+        // Allocate the large block
+        size_t blocks = largeblock_blocks(size);
+        allocation_t* alloc = (allocation_t*) util_allocate(blocks * allocation_size());
+        if(!alloc) return NULL;
+
+        // Perform setup
+        alloc->type = ALLOCATION_LARGE;
+        lb = &alloc->lb;
+        lb->block_count = blocks;
+        lb->next = NULL;
+    }
+    // Otherwise remove the found largeblock from the free list
+    else largeblock_unlink(lb, ctx);
+
+    // Return the largeblock
+    return lb;
+}
+
+//
 // Superblock functions
 //
 
-inline size_t superblock_footprint(void) {
-    return util_pagesize() + sizeof(superblock_t);
-}
-
 inline size_t superblock_size(void) {
-    return util_pagesize();
+    return allocation_size() - sizeof(allocation_t);
 }
 
 static void superblock_link(superblock_t* sb, heap_t* heap, int group, int size_class) {
@@ -219,12 +329,15 @@ static void superblock_init(superblock_t* sb, heap_t* heap, int size_class) {
 
 static superblock_t* superblock_allocate(heap_t* heap, int size_class) {
     // Try to allocate a superblock
-    superblock_t* sb = (superblock_t*) util_allocate(superblock_footprint());
-    if(!sb) return NULL;
+    allocation_t* alloc = (allocation_t*) util_allocate(allocation_size());
+    if(!alloc) return NULL;
+
+    // Set the allocation type
+    alloc->type = ALLOCATION_NORMAL;
 
     // Initialize the superblock and return it
-    superblock_init(sb, heap, size_class);
-    return sb;
+    superblock_init(&alloc->sb, heap, size_class);
+    return &alloc->sb;
 }
 
 static int superblock_group(superblock_t* sb) {
@@ -401,19 +514,32 @@ inline heap_t* context_localheap(context_t* ctx, uint32_t threadid) {
     return context_heap(ctx, 1 + (threadid % ctx->heap_count));
 }
 
+inline allocation_t* context_allocation_find(context_t* ctx, void* ptr) {
+    size_t size = allocation_size();
+    return (allocation_t*) ((char*) ctx->blocks_base + ((ptr - ctx->blocks_base) / size) * size);
+}
+
+inline superblock_t* context_superblock_find(context_t* ctx, void* ptr) {
+    return &context_allocation_find(ctx, ptr)->sb;
+}
+
 static void context_init(context_t* ctx) {
+    pthread_mutex_init(&ctx->largeblock_lock, NULL);
     ctx->blocks_base = (char*) ctx + context_size();
-    ctx->heap_count  = util_heapcount();
+    ctx->heap_count = util_heapcount();
+    ctx->largeblock_next = NULL;
     int i; for(i = 0; i <= ctx->heap_count; i++)
         heap_init(context_heap(ctx, i), i);
 }
 
-static superblock_t* context_superblock_find(context_t* ctx, void* ptr) {
-    size_t size = superblock_footprint();
-    return (superblock_t*) ((char*) ctx->blocks_base + ((ptr - ctx->blocks_base) / size) * size);
+static void* context_largeblock_malloc(context_t* ctx, size_t sz) {
+    largeblock_lock(ctx);
+    largeblock_t* lb = largeblock_allocate(ctx, sz);
+    void* mem = (lb != NULL) ? largeblock_data(lb) : NULL;
+    largeblock_unlock(ctx); return mem;
 }
 
-static void* context_malloc(context_t* ctx, size_t sz) {
+static void* context_superblock_malloc(context_t* ctx, size_t sz) {
     // Get the local heap and lock it
     heap_t* heap = context_localheap(ctx, util_gettid());
     heap_lock(heap);
@@ -462,9 +588,15 @@ static void* context_malloc(context_t* ctx, size_t sz) {
     return mem;
 }
 
-static void context_free(context_t* ctx, void* ptr) {
-    // Find superblock and lock its heap
-    superblock_t* sb = context_superblock_find(ctx, ptr);
+static void context_largeblock_free(context_t* ctx, largeblock_t* lb, void* ptr) {
+    // Add largeblock to free list
+    largeblock_lock(ctx);
+    largeblock_link(lb, ctx);
+    largeblock_unlock(ctx);
+}
+
+static void context_superblock_free(context_t* ctx, superblock_t* sb, void* ptr) {
+    // Lock the superblock's heap
     heap_t* heap = superblock_heap_lock(sb);
 
     // Find and free block
@@ -488,6 +620,24 @@ static void context_free(context_t* ctx, void* ptr) {
     heap_unlock(heap);
 }
 
+static void* context_malloc(context_t* ctx, size_t sz) {
+    // See if we are allocating a large block
+    if(sz > superblock_size()/2)
+        return context_largeblock_malloc(ctx, sz);
+    // Otherwise do a standard superblock style allocation
+    else return context_superblock_malloc(ctx, sz);
+}
+
+static void context_free(context_t* ctx, void* ptr) {
+    // Fetch the allocation
+    allocation_t* alloc = context_allocation_find(ctx, ptr);
+    // If it is a normal allocation
+    if(alloc->type == ALLOCATION_NORMAL)
+        context_superblock_free(ctx, &alloc->sb, ptr);
+    // Otherwise perform call the large block handler
+    else context_largeblock_free(ctx, &alloc->lb, ptr);
+}
+
 //
 // Global context
 //
@@ -502,22 +652,13 @@ inline context_t* get_context(void) {
 
 void *mm_malloc(size_t sz)
 {
-    // See if we are allocating from system
-    if(sz > superblock_size()/2)
-        return malloc(sz);
-
     // Allocate and return the memory
     return context_malloc(get_context(), sz);
 }
 
 void mm_free(void *ptr)
 {
-    // See if it was a system allocation
-    if(ptr < util_desg_lo() || ptr >= util_desg_hi()) {
-        free(ptr); return;
-    }
-
-    // Free the object
+    // Free the allocation
     context_free(get_context(), ptr);
 }
 
