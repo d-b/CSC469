@@ -116,7 +116,7 @@ static void util_init(void) {
     if(dseg_hi <= dseg_lo) mem_init();
     pthread_mutex_init(&global_util_allocator_lock, NULL);
     global_util_pagesize = mem_pagesize();
-    global_util_sizeclasses = util_sizeclass(global_util_pagesize);
+    global_util_sizeclasses = util_sizeclass(global_util_pagesize >> 2);
 }
 
 inline pid_t util_gettid(void) {
