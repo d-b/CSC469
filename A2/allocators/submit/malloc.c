@@ -26,7 +26,7 @@
 #define ALLOC_HOARD_FULLNESS_GROUPS 4
 #define ALLOC_HOARD_MIN_SUPERBLOCKS 1
 #define ALLOC_HOARD_SIZE_CLASS_BASE 2
-#define ALLOC_HOARD_SIZE_CLASS_MIN  2
+#define ALLOC_HOARD_SIZE_CLASS_MIN  3
 #define ALLOC_HOARD_HEAP_CPU_FACTOR 1
 
 //
@@ -116,7 +116,7 @@ static void util_init(void) {
     if(dseg_hi <= dseg_lo) mem_init();
     pthread_mutex_init(&global_util_allocator_lock, NULL);
     global_util_pagesize = mem_pagesize();
-    global_util_sizeclasses = util_sizeclass(global_util_pagesize >> 2);
+    global_util_sizeclasses = util_sizeclass(global_util_pagesize >> 2) + 1;
 }
 
 inline pid_t util_gettid(void) {
@@ -142,9 +142,9 @@ inline size_t util_pagesize() {
     return global_util_pagesize;
 }
 
-inline size_t util_pagealigned(size_t size) {
-    size_t page_size = util_pagesize();
-    return ((size + page_size - 1)/page_size)*page_size;
+inline size_t util_cachealigned(size_t size) {
+    size_t block_size = ARCH_CACHE_ALIGNMENT;
+    return ((size + block_size - 1)/block_size)*block_size;
 }
 
 inline int util_sizeclasses() {
@@ -160,9 +160,20 @@ inline int util_sizeclass(size_t size) {
         size_class += 1;
     }
 
-    // Check for remainder and return size class
+    // Check for remainder and increment as needed
     if(size % size_unit) size_class += 1;
-    return (size_class < ALLOC_HOARD_SIZE_CLASS_MIN) ? ALLOC_HOARD_SIZE_CLASS_MIN : size_class;
+
+    // Enforce minimum and re-base it to be zero indexed
+    if(size_class < ALLOC_HOARD_SIZE_CLASS_MIN) size_class = ALLOC_HOARD_SIZE_CLASS_MIN;
+    size_class -= ALLOC_HOARD_SIZE_CLASS_MIN;
+    return size_class;
+}
+
+inline size_t util_sizeclass_size(int size_class) {
+    size_t size = 1;
+    int i; for(i = 0; i < size_class + ALLOC_HOARD_SIZE_CLASS_MIN; i++)
+        size *= ALLOC_HOARD_SIZE_CLASS_BASE;
+    return size;
 }
 
 inline int util_heapcount() {
@@ -299,9 +310,7 @@ static void superblock_transform(superblock_t* sb, int size_class) {
     sb->size_class = size_class;
 
     // Compute block size
-    sb->block_size = 1;
-    int i; for(i = 0; i < sb->size_class; i++)
-        sb->block_size *= ALLOC_HOARD_SIZE_CLASS_BASE;
+    sb->block_size = util_sizeclass_size(size_class);
 
     // Set initials
     sb->group       = 0;
@@ -499,7 +508,7 @@ static superblock_t* heap_scan(heap_t* heap, int size_class) {
 inline size_t context_size() {
     size_t size = sizeof(context_t) - sizeof(char)
                 + heap_size() * (util_heapcount() + 1); // Add 1 for global heap
-    return util_pagealigned(size);
+    return util_cachealigned(size);
 }
 
 inline heap_t* context_heap(context_t* ctx, int index) {
