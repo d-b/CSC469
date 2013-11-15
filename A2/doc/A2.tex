@@ -68,10 +68,19 @@
 
 \section{Design}
 \subsection{Overview}
-Our allocator closely follows the Hoard design discussed in the Emery Berger et al. paper. Memory is reserved in page sized pieces in the form of superblocks. These superblocks reside in a number of thread local heaps. The number of these heaps is chosen to be some multiple of the number of processors on the system. Superblocks are further divided into size classes, which we chose to be spaced apart by powers of 2. Furthermore, the superblocks are stored into fullness groups based on how much free space exists in a given superblock. Finally, a global heap is used to prevent unbounded memory use in certain scenarios. When superblocks reach some emptiness threshold they are moved to the global heap, and can be acquired by any thread.
+Our allocator closely follows the Hoard design discussed in the Emery Berger et al. paper. Memory is
+reserved in page sized pieces in the form of superblocks. These superblocks reside in a number of
+thread local heaps. The number of these heaps is chosen to be some multiple of the number of
+processors on the system. Superblocks are further divided into size classes, which we chose to be
+spaced apart by powers of 2. Furthermore, the superblocks are stored into fullness groups based on
+how much free space exists in a given superblock. Finally, a global heap is used to prevent
+unbounded memory use in certain scenarios. When superblocks reach some emptiness threshold they are
+moved to the global heap, and can be acquired by any thread.
 
 \subsection{False sharing avoidance}
-The primary goal of the Hoard allocator is to avoid false sharing. Our allocator achieves this by using thread local heaps. To begin with, the superblocks were carefully chosen to be aligned by cache line boundaries, as seen in listing \ref{lst:superblock}.
+The primary goal of the Hoard allocator is to avoid false sharing. Our allocator achieves this by
+using thread local heaps. To begin with, the superblocks were carefully chosen to be aligned by
+cache line boundaries, as seen in listing \ref{lst:superblock}.
 \lstset{language=C, caption={Superblock \& allocation structure}, basicstyle=\footnotesize, label=lst:superblock}
 \begin{lstlisting}
 // Superblock structure
@@ -98,23 +107,43 @@ struct ALLOCATION_T {
 } __attribute__((aligned(ARCH_CACHE_ALIGNMENT)));
 \end{lstlisting}
 
- This guarantees that if two threads allocate memory on their own superblocks no false sharing should occur. However, it should be noted that process of placing nearly empty superblocks into the global heap, to be acquired by arbitrary threads, does allow for some limited amount of false sharing to occur. However, in practice since these superblocks are mostly empty the likelihood of false sharing is negligibly small.
+This guarantees that if two threads allocate memory on their own superblocks no false sharing should
+occur. However, it should be noted that the process of placing nearly empty superblocks into the
+global heap, to be acquired by arbitrary threads, does allow for some limited amount of false
+sharing to occur. However, in practice since these superblocks are mostly empty once acquired the
+likelihood of false sharing is negligibly small.
 
 \subsection{Unbounded memory use}
-The global heap is used as a way to avoid certain scenarios in which unbounded memory usage may occur. One such scenario is a producer consumer relationship. A producer thread may produce some object and hand it off to the consumer thread. Once the consumer thread is done with the object, if there is no way for the producer to relinquish the memory, this can lead to unbounded memory usage. In our allocator, the consumer would end up relinquishing the superblock after freeing the object, assuming the superblock is mostly empty afterwards. This successfully mitigates the unbounded memory problem.
+The global heap is used as a way to avoid certain scenarios in which unbounded memory usage may
+occur. One such scenario is a producer consumer relationship. A producer thread may produce some
+object and hand it off to the consumer thread. Once the consumer thread is done with the object, if
+there is no way for the producer to reclaim the memory, this can lead to unbounded memory usage.
+In our allocator, the consumer would end up relinquishing the superblock after freeing the object,
+assuming the superblock is mostly empty afterwards. This successfully mitigates the unbounded memory
+problem.
 
 \subsection{Fragmentation}
-Superblocks belong to a set of \textit{size classes}, where a superblock of a given size class only has blocks of the given size. In our implementation these classes are powers of 2. This limits internal fragmentation to a factor of 2 (Berger et. el., p.2).
+Superblocks belong to a set of \textit{size classes}, where a superblock of a given size class only
+has blocks of the given size. In our implementation these classes are powers of 2. This limits
+internal fragmentation to a factor of 2 (Berger et. el., p.2).
 
 \subsection{Cache locality}
-Freed blocks are placed in a LIFO. This increase the likelihood of reallocating recently used memory. This will take advantage of resident TLB entries and other cache effects.
+Freed blocks are placed in a LIFO. This increase the likelihood of reallocating recently used
+memory. This will take advantage of resident TLB entries and other cache effects.
 
 \subsection{Synchronization}
-In our implementation, locking is done at thread local heap level. This seems to work very well if threads mostly allocate and free their own memory only. However, there are some rare scenarios where significant lock contention occurs. This is illustrated in the Larson benchmark. If threads often free memory allocated by other threads they prevent other threads from making progress while the deallocation occurs. 
+In our implementation, locking is done at thread local heap level. This seems to work very well if
+threads mostly allocate and free their own memory only. However, there are some rare scenarios where
+significant lock contention occurs. This is illustrated in the Larson benchmark. If threads often
+free memory allocated by other threads they prevent other threads from making progress while the
+deallocation occurs.
 
 \section{Benchmarking}
 \subsection{Hypothesis}
-We expected to see very good results in the cache tests. After all, the primary focus of the Hoard design is to avoid false sharing. Since there were not significantly computationally expensive algorithms in the code base, we also expected to see reasonably good speed. We also expected to see less impressive results in the Larson test due to potentially high lock contention.
+We expected to see very good results in the cache tests. After all, the primary focus of the Hoard
+design is to avoid false sharing. Since there were not significantly computationally expensive
+algorithms in the code base, we also expected to see reasonably good speed. We also expected to see
+less impressive results in the Larson test due to potentially high lock contention.
 \subsection{Hardware}
 The data was collected in Arch Linux running in VMware Workstation on top of the following hardware
 \ref{fig:hardware}.
@@ -141,8 +170,8 @@ The data was collected in Arch Linux running in VMware Workstation on top of the
 \newpage
 
 \subsection{Data}
-As expected, the allocator did well in the cache tests. The figures below show our allocator to be on par with the Linux system's standard C library.
-
+As expected, the allocator did well in the cache tests. The figures below show our allocator to be
+on par with the Linux system's standard C library.
 
 \begin{figure}[h]
     \caption{Passive false sharing}
@@ -160,7 +189,11 @@ As expected, the allocator did well in the cache tests. The figures below show o
 
 \newpage 
 
-The allocator did not do as well in Larson and the Threadtest. There also seems to be some type of bottleneck at around 8 threads. This is seen in the standard C allocator in the Threadtest benchmark, but is more pronounced in our allocator in both Larson and the Threadtest. This is most likely due to the fact that the underlying system is not really an 8 core system but rather a hyperthreaded 4 core system. Hyperthreading only accelerates context switches.
+The allocator did not do as well in Larson and the Threadtest. There also seems to be some type of
+bottleneck at around 8 threads. This is seen in the standard C allocator in the Threadtest
+benchmark, but is more pronounced in our allocator in both Larson and the Threadtest. This is most
+likely due to the fact that the underlying system is not really an 8 core system but rather a
+hyperthreaded 4 core system. Hyperthreading only accelerates context switches.
 
 \begin{figure}[h]
     \caption{Larson}
@@ -177,7 +210,11 @@ The allocator did not do as well in Larson and the Threadtest. There also seems 
 \end{figure}
 
 \subsection{Lock contention analysis}
-To confirm our worst fears about the Larson test we decided to perform a more detailed analysis. We used Intel\textregistered\ VTune\texttrademark\  Amplifier XE 2013 to analyze the lock contention while the Larson test is running. As mentioned earlier, we expected to see lock contention caused by the calls to free memory not allocated by the thread doing the freeing.
+To confirm our worst fears about the Larson test we decided to perform a more detailed analysis. We
+used Intel\textregistered\ VTune\texttrademark\  Amplifier XE 2013 to analyze the lock contention
+while the Larson test is running. As mentioned earlier, we expected to see lock contention caused by
+the calls to free memory not allocated by the thread doing the freeing.
+
 \begin{figure}[h]
     \caption{VTune}
     \centering
