@@ -125,7 +125,7 @@ problem.
 \subsection{Fragmentation}
 Superblocks belong to a set of \textit{size classes}, where a superblock of a given size class only
 has blocks of the given size. In our implementation these classes are powers of 2. This limits
-internal fragmentation to a factor of 2 (Berger et. el., p.2).
+internal fragmentation to a factor of 2 (Berger et. el., p.2) \cite{Berger:2000:HSMa}.
 
 \subsection{Cache locality}
 Freed blocks are placed in a LIFO. This increase the likelihood of reallocating recently used
@@ -169,7 +169,7 @@ The data was collected in Arch Linux running in VMware Workstation on top of the
 
 \newpage
 
-\subsection{Data}
+\subsection{Throughput}
 As expected, the allocator did well in the cache tests. The figures below show our allocator to be
 on par with the Linux system's standard C library.
 
@@ -177,14 +177,14 @@ on par with the Linux system's standard C library.
     \caption{Passive false sharing}
     \centering
     \includegraphics[scale=0.35]{../benchmarks/cache-scratch/cache-scratch.pdf}
-    \label{fig:plot}
+    \label{fig:passive-false-sharing}
 \end{figure}
 
 \begin{figure}[h]
     \caption{Active false sharing}
     \centering
     \includegraphics[scale=0.35]{../benchmarks/cache-thrash/cache-thrash.pdf}
-    \label{fig:plot}
+    \label{fig:active-false-sharing}
 \end{figure}
 
 \newpage 
@@ -199,19 +199,19 @@ hyperthreaded 4 core system. Hyperthreading only accelerates context switches.
     \caption{Larson}
     \centering
     \includegraphics[scale=0.33]{../benchmarks/larson/larson.pdf}
-    \label{fig:plot}
+    \label{fig:larson}
 \end{figure}
 
 \begin{figure}[h]
     \caption{Threadtest}
     \centering
     \includegraphics[scale=0.33]{../benchmarks/threadtest/threadtest.pdf}
-    \label{fig:plot}
+    \label{fig:threadtest}
 \end{figure}
 
 \subsection{Lock contention analysis}
 To confirm our worst fears about the Larson test we decided to perform a more detailed analysis. We
-used Intel\textregistered\ VTune\texttrademark\  Amplifier XE 2013 to analyze the lock contention
+used Intel\textregistered\ VTune\texttrademark\ Amplifier XE 2013 to analyze the lock contention
 while the Larson test is running. As mentioned earlier, we expected to see lock contention caused by
 the calls to free memory not allocated by the thread doing the freeing.
 
@@ -219,10 +219,60 @@ the calls to free memory not allocated by the thread doing the freeing.
     \caption{VTune}
     \centering
     \includegraphics[scale=0.28]{VTune.png}
-    \label{fig:plot}
+    \label{fig:vtune}
 \end{figure}
 
 As expected lock contention is somewhat of a problem during the Larson test.
+
+\newpage
+
+\subsection{Fragmentation}
+
+The fragmentation results are as seen in figure \ref{fig:fragmentation}.
+
+\begin{figure}[h]
+    \caption{Fragmentation results}
+    \centering
+    \begin{tabular}{|c|cccc|}
+        \rowcolor{black!80}
+        \textcolor{white}{Benchmark} & \multicolumn{4}{|c|}{\textcolor{white}{Allocator}} \\
+                      & submission & libc  & kheap & cmu   \\
+        \hline
+        cache-scratch & 0.169      & 0.030 & 0.109 & 1.000    \\
+        cache-thrash  & 0.182      & 0.030 & 0.114 & 1.000    \\
+        larson        & 0.395      & 0.592 & 0.039 & SEGFAULT \\
+        threadtest    & 0.345      & 0.091 & 0.004 & SEGFAULT \\
+        \hline
+    \end{tabular}
+    \label{fig:fragmentation}
+\end{figure}
+
+With larger workloads present in \emph{larson} and \emph{threadtest} our allocator does
+reasonably well relative to the other allocators tested. It beats \emph{libc} in
+\emph{threadtest} and comes close to \emph{libc} in \emph{larson}.
+
+However, we claim that the fragmentation score is biased in the case of \emph{cache-scratch} and
+\emph{cache-thrash}, which both have small workloads. These two tests allocate very little and
+assume that 4KB is reasonable amount of memory to expect an allocator to need during operation. This
+unfairly penalizes Hoard in two ways. First, Hoard requires 2KB for its static structures alone.
+This is assuming $4$ fullness groups, $9$ size classes, $64$ bit ($8$ byte) pointers and $8$
+processors. We have $4*9*8*8 = 2304$ or about 2KB. Second, Hoard and allocators like it allocate in
+superblocks and require at least $K*S$ worth of memory on each heap, where $S$ is the size of a
+superblock and $K$ is some constant. We note that $S$ is usually at least page sized for good
+performance. Assuming 4KB pages, if even one page was allocated at this point we would be at 6KB,
+which is 2KB over the 4KB estimate. However, for Hoard to obtain good performance $K$ must be
+greater than $0$. If it is not, Hoard incurs significant performance penalties due to lock
+contention associated with transferring back and forth between the global and local heaps.
+
+So now with $K > 0$, Hoard must allocate usually $1$ page per processor worth of memory at a
+minimum. On an $8$ processor system, that amounts to 32KB of memory! We are now at more than 38KB of
+memory, well over the suggested 4KB. Yet it is not fragmentation, since internally there is plenty
+of free memory to go around. This would be no problem with reasonably sized work loads, as the
+other benchmarks suggest. This is why we claim that the fragmentation score in \emph{cache-scratch}
+and \emph{cache-thrash} unfairly penalizes Hoard and allocators like it.
+
+\bibliography{A2}
+\bibliographystyle{plain}
 
 % ----------------------------------------------------------------
 \end{document}
