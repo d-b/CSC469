@@ -190,10 +190,10 @@ on par with the Linux system's standard C library.
 \newpage 
 
 The allocator did not do as well in Larson and the Threadtest. There also seems to be some type of
-bottleneck at around 8 threads. This is seen in the standard C allocator in the Threadtest
-benchmark, but is more pronounced in our allocator in both Larson and the Threadtest. This is most
-likely due to the fact that the underlying system is not really an 8 core system but rather a
-hyperthreaded 4 core system. Hyperthreading only accelerates context switches.
+bottleneck at around 8 threads. This is seen in the standard C allocator in the Larson benchmark,
+but is more pronounced in our allocator in both Larson and the Threadtest. This is most likely due
+to the fact that the underlying system is not really an 8 core system but rather a hyperthreaded 4
+core system. Hyperthreading only accelerates context switches.
 
 \begin{figure}[h]
     \caption{Larson}
