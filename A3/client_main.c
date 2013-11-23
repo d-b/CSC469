@@ -362,11 +362,9 @@ int init_client()
 	/* 1. initialization to allow TCP-based control messages to chat server */
 
 
-
-
-
-
-	server_socket_fd = init_tcp();
+	if ((server_socket_fd = init_tcp()) == -1){
+		return -1;
+	}
 
 
 	bzero(buf, 1024);
@@ -402,6 +400,9 @@ int init_client()
 		member_id = ntohs(cmh->member_id);
 		printf("client init sucessfull ID: %d\n", member_id);
 	}
+
+	close(server_socket_fd);
+
 	/* 2. initialization to allow UDP-based chat messages to chat server */
 
 
