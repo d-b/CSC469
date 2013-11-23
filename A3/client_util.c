@@ -20,6 +20,8 @@
 
 #include "client.h"
 
+ #include <errno.h>
+
 static void build_req(char *buf)
 {
 	/* Write an HTTP GET request for the chatserver.txt file into buf */
@@ -84,6 +86,32 @@ int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, u_int16
 	 */
 
 	/**** YOUR CODE HERE ****/
+	struct hostent *hp;
+	struct sockaddr_in locnserver_addr; 
+
+	locnserver_addr.sin_family = AF_INET;
+	locnserver_addr.sin_port = 80;
+
+	hp = gethostbyname("www.cdf.toronto.edu"); 
+
+    if ( hp == NULL ) 
+    {  
+		fprintf(stderr, "location server is down\n");
+		exit(1);
+    }
+
+	locnserver_addr.sin_addr = *((struct in_addr *)hp->h_addr);
+    /* create socket */
+    locn_socket_fd = socket(PF_INET, SOCK_STREAM, 0);
+    /* request connection to server */
+    if (connect(locn_socket_fd, (struct sockaddr *)&locnserver_addr, sizeof(locnserver_addr)) == -1)
+    {  
+		perror("client:connect"); close(locn_socket_fd);
+		exit(1); 
+    }    
+
+
+
 
 	/* The code you write should initialize locn_socket_fd so that
 	 * it is valid for the write() in the next step.
