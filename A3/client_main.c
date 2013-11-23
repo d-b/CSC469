@@ -402,6 +402,7 @@ int init_client()
 	}
 
 	close(server_socket_fd);
+	free(buf);
 
 	/* 2. initialization to allow UDP-based chat messages to chat server */
 
