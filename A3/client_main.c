@@ -242,6 +242,49 @@ int create_receiver()
 	return 0;
 }
 
+/*Returns a file descriptor to be used foe sending and receiving control messages*/
+
+int init_tcp(void){
+
+	int server_socket_fd;
+	struct hostent *hp;
+	struct sockaddr_in server_addr; 
+
+	hp = gethostbyname(server_host_name); 
+
+    if ( hp == NULL ) 
+    {  
+		fprintf(stderr, "location server is down\n");
+		exit(1);
+    }
+
+	server_addr.sin_addr = *((struct in_addr *)hp->h_addr);
+    /* create socket */
+    server_socket_fd = socket(PF_INET, SOCK_STREAM, 0);
+
+    int optval = 1;
+    setsockopt(server_socket_fd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
+    
+    bzero((char *)&server_addr, sizeof(server_addr));
+	server_addr.sin_family = AF_INET;
+
+	/*A client can connect to any mf my IP addresses*/
+	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	/*Assign the port*/
+	server_addr.sin_port = htons((unsigned short)server_tcp_port);
+
+
+    /* request connection to server */
+    if (connect(server_socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
+    {  
+		printf("connection to server refused\n");
+		return -1; 
+    }    	
+
+    return server_socket_fd;
+
+
+}
 
 /*********************************************************************/
 
@@ -296,6 +339,17 @@ int init_client()
 	 *
 	 * YOUR CODE HERE
 	 */
+	int server_socket_fd;
+
+	int msg_len;
+
+
+
+	char *buf = (char *)malloc(1024);
+
+	/*Common control message header*/
+	struct control_msghdr *cmh;
+	struct register_msgdata *rdata;
 
 #ifdef USE_LOCN_SERVER
 
@@ -308,6 +362,46 @@ int init_client()
 	/* 1. initialization to allow TCP-based control messages to chat server */
 
 
+
+
+
+
+	server_socket_fd = init_tcp();
+
+
+	bzero(buf, 1024);
+
+	cmh = (struct control_msghdr *)buf;
+
+	cmh->msg_type = htons(REGISTER_REQUEST);
+
+	rdata = (struct register_msgdata *) cmh->msgdata;
+
+	rdata->udp_port = htons(client_udp_port);
+
+	strcpy((char *)rdata->member_name, member_name);
+
+	msg_len = sizeof(struct control_msghdr) +
+			sizeof(struct register_msgdata) +
+			strlen(member_name) + 1;
+   
+    cmh->msg_len = htons(msg_len);
+
+    write(server_socket_fd, buf, msg_len);
+
+
+    bzero(buf, 1024);
+	read(server_socket_fd, buf, 1024);
+
+	if (ntohs(cmh->msg_type) == 3 ){
+		printf("client init failed\n");
+		return -1;
+	}
+
+	if (ntohs(cmh->msg_type) == 2 ){
+		member_id = ntohs(cmh->member_id);
+		printf("client init sucessfull ID: %d\n", member_id);
+	}
 	/* 2. initialization to allow UDP-based chat messages to chat server */
 
 
@@ -527,6 +621,7 @@ int main(int argc, char **argv)
 	init_client();
 
 	get_user_input();
+
 
 	return 0;
 }
