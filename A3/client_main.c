@@ -352,7 +352,7 @@ int handle_register_req()
 
 	bzero(buf, MAX_MSG_LEN);
 
-	cmh = (struct control_msghdr *)buf;
+	cmh = (struct control_msghdr *)buf;				
 
 	cmh->msg_type = htons(REGISTER_REQUEST);
 
@@ -437,20 +437,44 @@ int init_client()
 #endif
  
 	/* 1. initialization to allow TCP-based control messages to chat server */
-	if ((handle_register_req()) == -1){
-		return -1;
-	}
 
 
 
 	/* 2. initialization to allow UDP-based chat messages to chat server */
 
+	socklen_t server_addr_len;
+
+	struct hostent *hp;
+
+	hp = gethostbyname(server_host_name);  						/*host*/
+
+    if ( hp == NULL ) 
+    {  
+		fprintf(stderr, "host error\n");
+		exit(1);
+    }
+
+
+	server_addr_len = sizeof(server_udp_addr); 
+
+	if( (udp_socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		perror("socket");
+		exit(1);
+	}
+
+	memset(&server_udp_addr, 0, server_addr_len);
+	server_udp_addr.sin_family = AF_INET;
+	server_udp_addr.sin_port = htons(server_udp_port);					/*port*/
+	memcpy((char *)hp->h_addr, (char *)&server_udp_addr.sin_addr.s_addr, hp->h_length);
 
 	/* 3. spawn receiver process - see create_receiver() in this file. */
 	create_receiver();
 
 	/* 4. register with chat server */
-    
+
+	if ((handle_register_req()) == -1){
+		return -1;
+	}
 
 
 	return 0;
@@ -474,13 +498,30 @@ void handle_chatmsg_input(char *inputdata)
 		exit(1);
 	}
 
-	bzero(buf, MAX_MSG_LEN);
+	memset(buf, 0, MAX_MSG_LEN);
 
 	/**** YOUR CODE HERE ****/
+	struct chat_msghdr *cmh;
 
+	cmh = (struct chat_msghdr *)buf;
 
+	strcpy((char *)cmh->sender.member_name, member_name);
+	strcpy((char *)cmh->msgdata, inputdata);
 
+	cmh->sender.member_id = htons(member_id);
 
+	int msg_len = sizeof(struct chat_msghdr) +
+			strlen(inputdata) + 1;
+   
+    cmh->msg_len = htons(msg_len);
+
+	socklen_t server_udp_addr_len = sizeof(server_udp_addr);
+
+	int n = sendto(udp_socket_fd, buf, msg_len, 0, (struct sockaddr *)&server_udp_addr, server_udp_addr_len);
+
+	if (n < 0){
+		printf("NOT SENT\n");
+	}
 	return;
 }
 
