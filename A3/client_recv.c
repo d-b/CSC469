@@ -23,7 +23,9 @@ static char *option_string = "f:";
 /* For communication with chat client control process */
 int ctrl2rcvr_qid;
 char ctrl2rcvr_fname[MAX_FILE_NAME_LEN];
-
+/* Global variables for remote UDP server address and our UDP port number */
+struct sockaddr_in server_addr;
+int socket_fd;
 
 void usage(char **argv) {
 	printf("usage:\n");
@@ -92,9 +94,9 @@ void init_receiver()
 	/**** YOUR CODE TO IMPLEMENT STEPS 2 AND 3 ****/
 
 	/* 2. Initialize UDP socket for receiving chat messages. */
-	struct sockaddr_in server_addr;
+
 	socklen_t server_addr_len;
-	int socket_fd;
+
 	struct hostent *hp;
 
 	hp = gethostbyname("localhost");  						/*host*/
@@ -159,6 +161,11 @@ void handle_received_msg(char *buf)
 {
 
 	/**** YOUR CODE HERE ****/
+	struct chat_msghdr *cmh;
+
+	cmh = (struct chat_msghdr *)buf;
+	printf("%s", (char *)cmh->msgdata);
+
 
 }
 
@@ -185,11 +192,15 @@ void receive_msgs()
 
 
 	/**** YOUR CODE HERE ****/
-
+	
+	int n;
+	socklen_t server_addr_len = sizeof(server_addr);
 	while(TRUE) {
 
 		/**** YOUR CODE HERE ****/
-
+		memset(buf, 0, MAX_MSG_LEN);
+		n = recvfrom(socket_fd, buf, MAX_MSG_LEN, 0, (struct sockaddr *)&server_addr, &server_addr_len);
+		handle_received_msg(buf);
 	}
 
 	/* Cleanup */
