@@ -79,6 +79,7 @@ void send_ok(int qid, u_int16_t port)
 	} 
 
 }
+/*!!!!!!!! port and host are hardcoded for now*/
 
 void init_receiver()
 {
@@ -91,6 +92,57 @@ void init_receiver()
 	/**** YOUR CODE TO IMPLEMENT STEPS 2 AND 3 ****/
 
 	/* 2. Initialize UDP socket for receiving chat messages. */
+	struct sockaddr_in server_addr;
+	socklen_t server_addr_len;
+	int socket_fd;
+	struct hostent *hp;
+
+	hp = gethostbyname("localhost");  						/*host*/
+
+    if ( hp == NULL ) 
+    {  
+		fprintf(stderr, "host error\n");
+		exit(1);
+    }
+
+
+	server_addr_len = sizeof(server_addr);
+
+	if( (socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		perror("socket");
+		exit(1);
+	}
+
+	memset(&server_addr, 0, server_addr_len);
+	server_addr.sin_family = AF_INET;
+	server_addr.sin_port = htons(11500);					/*port*/
+	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+	if( bind(socket_fd, (struct sockaddr *)&server_addr,
+		 server_addr_len) < 0 ) {
+		perror("bind");
+
+		server_addr.sin_port = 0;
+		if( bind(socket_fd, (struct sockaddr *)&server_addr,
+			 server_addr_len) < 0 ) {
+			perror("bind");
+			exit(1);
+		}	
+
+		if( getsockname(socket_fd, (struct sockaddr *)&server_addr,
+				&server_addr_len) < 0 ) {
+			perror("getsockname");
+			exit(1);
+		}
+	} 
+    
+
+	/* server is created successfully */
+
+	send_ok(ctrl2rcvr_qid, (unsigned int)ntohs(server_addr.sin_port));
+	printf("Server waiting on port:%hu\n", ntohs(server_addr.sin_port));
+
+
 
 	/* 3. Tell parent the port number if successful, or failure code if not. 
 	 *    Use the send_error and send_ok functions
