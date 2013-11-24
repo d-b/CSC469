@@ -96,7 +96,7 @@ int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, u_int16
 
     if ( hp == NULL ) 
     {  
-		fprintf(stderr, "location server is down\n");
+		fprintf(stderr, "host error\n");
 		exit(1);
     }
 
