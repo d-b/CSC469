@@ -286,6 +286,52 @@ int init_tcp(void){
 
 }
 
+int init_control_msg(int type, char *message){
+
+	char *buf = (char *)malloc(MAX_MSG_LEN);
+
+	int server_socket_fd = init_tcp();
+
+	int msg_len;
+	struct control_msghdr *cmh;
+	bzero(buf, MAX_MSG_LEN);
+
+	cmh = (struct control_msghdr *)buf;
+
+	cmh->msg_type = htons(type);
+
+	cmh->member_id = htons(member_id);
+
+	strcpy((char *)cmh->msgdata , message);
+
+	msg_len = sizeof(struct control_msghdr) +
+			strlen(message) + 1;
+   
+    cmh->msg_len = htons(msg_len);
+
+    write(server_socket_fd, buf, msg_len);
+
+    bzero(buf, MAX_MSG_LEN);
+
+	read(server_socket_fd, buf, MAX_MSG_LEN);
+
+	if (ntohs(cmh->msg_type) == type + 1 ){
+		printf("sucessfull");
+		printf("%s", (char *)cmh->msgdata);
+	}
+
+	if (ntohs(cmh->msg_type) == type + 2 ){
+		printf("failed");
+	}
+
+
+	close(server_socket_fd);
+
+
+    return 0;
+
+}
+
 /*********************************************************************/
 
 /* We define one handle_XXX_req() function for each type of 
@@ -296,78 +342,19 @@ int init_tcp(void){
 
 int handle_register_req()
 {
-
-	return 0;
-}
-
-int handle_room_list_req()
-{
-
-	return 0;
-}
-
-int handle_member_list_req(char *room_name)
-{
-
-	return 0;
-}
-
-int handle_switch_room_req(char *room_name)
-{
-
-	return 0;
-}
-
-int handle_create_room_req(char *room_name)
-{
-
-	return 0;
-}
-
-
-int handle_quit_req()
-{
-
-	return 0;
-}
-
-
-int init_client()
-{
-	/* Initialize client so that it is ready to start exchanging messages
-	 * with the chat server.
-	 *
-	 * YOUR CODE HERE
-	 */
 	int server_socket_fd;
-
 	int msg_len;
-
-
-
-	char *buf = (char *)malloc(1024);
+	char *buf = (char *)malloc(MAX_MSG_LEN);
 
 	/*Common control message header*/
 	struct control_msghdr *cmh;
 	struct register_msgdata *rdata;
 
-#ifdef USE_LOCN_SERVER
-
-	/* 0. Get server host name, port numbers from location server.
-	 *    See retrieve_chatserver_info() in client_util.c
-	 */
-
-#endif
- 
-	/* 1. initialization to allow TCP-based control messages to chat server */
-
-
 	if ((server_socket_fd = init_tcp()) == -1){
 		return -1;
 	}
 
-
-	bzero(buf, 1024);
+	bzero(buf, MAX_MSG_LEN);
 
 	cmh = (struct control_msghdr *)buf;
 
@@ -387,22 +374,78 @@ int init_client()
 
     write(server_socket_fd, buf, msg_len);
 
-
-    bzero(buf, 1024);
-	read(server_socket_fd, buf, 1024);
+    bzero(buf, MAX_MSG_LEN);
+	read(server_socket_fd, buf, MAX_MSG_LEN);
 
 	if (ntohs(cmh->msg_type) == 3 ){
-		printf("client init failed\n");
+		printf("client init failed");
 		return -1;
 	}
 
 	if (ntohs(cmh->msg_type) == 2 ){
 		member_id = ntohs(cmh->member_id);
-		printf("client init sucessfull ID: %d\n", member_id);
+		printf("client init sucessfull ID: %d", member_id);
 	}
 
 	close(server_socket_fd);
-	free(buf);
+
+	return 0;
+}
+
+int handle_room_list_req()
+{
+	return init_control_msg(ROOM_LIST_REQUEST, "");
+}
+
+int handle_member_list_req(char *room_name)
+{
+
+	return init_control_msg(MEMBER_LIST_REQUEST, room_name);
+}
+
+int handle_switch_room_req(char *room_name)
+{
+
+	return init_control_msg(SWITCH_ROOM_REQUEST, room_name);
+}
+
+int handle_create_room_req(char *room_name)
+{
+	return init_control_msg(CREATE_ROOM_REQUEST, room_name);
+
+}
+
+
+int handle_quit_req()
+{
+
+	return 0;
+}
+
+
+int init_client()
+{
+	/* Initialize client so that it is ready to start exchanging messages
+	 * with the chat server.
+	 *
+	 * YOUR CODE HERE
+	 */
+
+
+#ifdef USE_LOCN_SERVER
+
+	/* 0. Get server host name, port numbers from location server.
+	 *    See retrieve_chatserver_info() in client_util.c
+	 */
+
+#endif
+ 
+	/* 1. initialization to allow TCP-based control messages to chat server */
+	if ((handle_register_req()) == -1){
+		return -1;
+	}
+
+
 
 	/* 2. initialization to allow UDP-based chat messages to chat server */
 
