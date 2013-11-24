@@ -254,25 +254,23 @@ int init_tcp(void){
 
     if ( hp == NULL ) 
     {  
-		fprintf(stderr, "location server is down\n");
+		fprintf(stderr, "host error\n");
 		exit(1);
     }
 
-	server_addr.sin_addr = *((struct in_addr *)hp->h_addr);
     /* create socket */
-    server_socket_fd = socket(PF_INET, SOCK_STREAM, 0);
+    server_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
 
     int optval = 1;
     setsockopt(server_socket_fd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
     
-    bzero((char *)&server_addr, sizeof(server_addr));
+    memset((char *)&server_addr, 0, sizeof(server_addr));
 	server_addr.sin_family = AF_INET;
+	/*server_addr.sin_addr.s_addr = htonl(INADDR_ANY);*/
+	memcpy((char *)hp->h_addr, (char *)&server_addr.sin_addr.s_addr, hp->h_length);
 
-	/*A client can connect to any mf my IP addresses*/
-	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	/*Assign the port*/
 	server_addr.sin_port = htons((unsigned short)server_tcp_port);
-
 
     /* request connection to server */
     if (connect(server_socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
@@ -282,8 +280,6 @@ int init_tcp(void){
     }    	
 
     return server_socket_fd;
-
-
 }
 
 int init_control_msg(int type, char *message){
@@ -451,7 +447,7 @@ int init_client()
 
 
 	/* 3. spawn receiver process - see create_receiver() in this file. */
-
+	create_receiver();
 
 	/* 4. register with chat server */
     
