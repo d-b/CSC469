@@ -438,7 +438,7 @@ int init_client()
  
 	/* 1. initialization to allow TCP-based control messages to chat server */
 
-
+	/* Currently handled in step 4 while registering*/
 
 	/* 2. initialization to allow UDP-based chat messages to chat server */
 
