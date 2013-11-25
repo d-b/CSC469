@@ -103,7 +103,7 @@ void init_receiver()
 
     if ( hp == NULL ) 
     {  
-		fprintf(stderr, "host error\n");
+		send_error(ctrl2rcvr_qid, NO_SERVER);
 		exit(1);
     }
 
@@ -112,6 +112,7 @@ void init_receiver()
 
 	if( (socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		send_error(ctrl2rcvr_qid, SOCKET_FAILED);
+		exit(1);
 	}
 
 	memset(&server_addr, 0, server_addr_len);
@@ -119,6 +120,7 @@ void init_receiver()
 	server_addr.sin_port = htons(11500);					/*port*/
 	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
+	/*!!!!!!!!!!!!!!! dont know if this is correct error handling*/
 	if( bind(socket_fd, (struct sockaddr *)&server_addr,
 		 server_addr_len) < 0 ) {
 		send_error(ctrl2rcvr_qid, BIND_FAILED);
@@ -126,13 +128,13 @@ void init_receiver()
 		server_addr.sin_port = 0;
 		if( bind(socket_fd, (struct sockaddr *)&server_addr,
 			 server_addr_len) < 0 ) {
-			perror("bind");
+			send_error(ctrl2rcvr_qid, BIND_FAILED);
 			exit(1);
 		}	
 
 		if( getsockname(socket_fd, (struct sockaddr *)&server_addr,
 				&server_addr_len) < 0 ) {
-			perror("getsockname");
+			send_error(ctrl2rcvr_qid, NAME_FAILED);
 			exit(1);
 		}
 	} 
@@ -160,9 +162,11 @@ void handle_received_msg(char *buf)
 {
 
 	/**** YOUR CODE HERE ****/
+
 	struct chat_msghdr *cmh;
 
 	cmh = (struct chat_msghdr *)buf;
+
 	printf("%s", (char *)cmh->msgdata);
 
 
@@ -195,10 +199,12 @@ void receive_msgs()
 	int n;
 	socklen_t server_addr_len = sizeof(server_addr);
 	while(TRUE) {
-
 		/**** YOUR CODE HERE ****/
+
 		memset(buf, 0, MAX_MSG_LEN);
+
 		n = recvfrom(socket_fd, buf, MAX_MSG_LEN, 0, (struct sockaddr *)&server_addr, &server_addr_len);
+
 		handle_received_msg(buf);
 	}
 
