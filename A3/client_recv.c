@@ -111,8 +111,7 @@ void init_receiver()
 	server_addr_len = sizeof(server_addr);
 
 	if( (socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		perror("socket");
-		exit(1);
+		send_error(ctrl2rcvr_qid, SOCKET_FAILED);
 	}
 
 	memset(&server_addr, 0, server_addr_len);
@@ -122,7 +121,7 @@ void init_receiver()
 
 	if( bind(socket_fd, (struct sockaddr *)&server_addr,
 		 server_addr_len) < 0 ) {
-		perror("bind");
+		send_error(ctrl2rcvr_qid, BIND_FAILED);
 
 		server_addr.sin_port = 0;
 		if( bind(socket_fd, (struct sockaddr *)&server_addr,
