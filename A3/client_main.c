@@ -282,11 +282,12 @@ int init_tcp(void){
     return server_socket_fd;
 }
 
+
 int init_control_msg(int type, char *message){
 
 	char *buf = (char *)malloc(MAX_MSG_LEN);
 
-	int server_socket_fd = init_tcp();
+	int server_socket_fd = connection(SOCK_STREAM, server_host_name, server_tcp_port);
 
 	int msg_len;
 	struct control_msghdr *cmh;
@@ -686,6 +687,8 @@ int main(int argc, char **argv)
 #ifdef USE_LOCN_SERVER
 
 	printf("Using location server to retrieve chatserver information\n");
+
+	retrieve_chatserver_info("simon", (uint16_t *) 8, (uint16_t *) 8);
 
 	if (strlen(member_name) == 0) {
 		usage(argv);
