@@ -66,6 +66,47 @@ static char *skip_http_headers(char *buf)
 	return curpos;
 }
 
+int connection(int type, char *name, int port){
+
+    char buf[10];
+    sprintf(buf, "%d", port);
+
+	char *hostname = name;
+	char *service = buf;
+	struct addrinfo hints, *res;
+	int err;
+	int sock;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_family = AF_INET;
+
+	if ((err = getaddrinfo(hostname, service, &hints, &res)) != 0) {
+		printf("error %d : %s\n", err, gai_strerror(err));
+		return -1;
+	}
+
+	sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+	if (sock < 0) {
+		perror("socket");
+		return -1;
+	}
+
+    int optval = 1;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
+
+	if (connect(sock, res->ai_addr, res->ai_addrlen) == -1) {
+		perror("connect");
+		return -1;
+	}
+
+	freeaddrinfo(res);
+
+	return sock;
+
+
+}
+
 
 int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, u_int16_t *udp_port)
 {
@@ -85,33 +126,9 @@ int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, u_int16
 	 *    port 80 
 	 */
 
-	/**** YOUR CODE HERE ****/
-	struct hostent *hp;
-	struct sockaddr_in locnserver_addr; 
+	/**** YOUR CODE HERE ***/
 
-	locnserver_addr.sin_family = AF_INET;
-	locnserver_addr.sin_port = 80;
-
-	hp = gethostbyname("www.cdf.toronto.edu"); 
-
-    if ( hp == NULL ) 
-    {  
-		fprintf(stderr, "host error\n");
-		exit(1);
-    }
-
-	locnserver_addr.sin_addr = *((struct in_addr *)hp->h_addr);
-    /* create socket */
-    locn_socket_fd = socket(PF_INET, SOCK_STREAM, 0);
-    /* request connection to server */
-    if (connect(locn_socket_fd, (struct sockaddr *)&locnserver_addr, sizeof(locnserver_addr)) == -1)
-    {  
-		perror("client:connect"); close(locn_socket_fd);
-		exit(1); 
-    }    
-
-
-
+	 locn_socket_fd = connection(SOCK_STREAM, "www.cdf.toronto.edu", 80);
 
 	/* The code you write should initialize locn_socket_fd so that
 	 * it is valid for the write() in the next step.
@@ -141,7 +158,7 @@ int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, u_int16
 	 */
 	sscanf(buf, "%*s %d%n", &code, &n);
 
-
+	printf("HERRRRE %d, %d\n", code, n);
 	/**** YOUR CODE HERE ****/
 
 
