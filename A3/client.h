@@ -59,3 +59,6 @@ typedef struct msgbuf {
 extern char *optarg; /* For option parsing */
 
 extern int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, u_int16_t *udp_port);
+
+extern int connection(int type, char *name, int port);
+
