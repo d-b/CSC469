@@ -99,15 +99,6 @@ void init_receiver()
 
 	struct hostent *hp;
 
-	hp = gethostbyname("localhost");  						/*host*/
-
-    if ( hp == NULL ) 
-    {  
-		send_error(ctrl2rcvr_qid, NO_SERVER);
-		exit(1);
-    }
-
-
 	server_addr_len = sizeof(server_addr);
 
 	if( (socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
