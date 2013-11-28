@@ -117,7 +117,7 @@ int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, u_int16
 	char *buf;
 	int buflen;
 	int code;
-	int  n;
+	int n;
 
 	/* Initialize locnserver_addr. 
 	 * We use a text file at a web server for location info
@@ -169,19 +169,17 @@ int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, u_int16
 		char udp[10];
 
 		char *str =  skip_http_headers(buf);
-  		char *p;
-  		int i;
-  		int j = 0;
-  		p = str;
+		char *p;
+		int i;
+		int j = 0;
+		p = str;
 
-  		for(i = 0; !isblank(p[ i ]); i++){
-    		host_name[j] =  p[ i ];
-    		j++;
-    	}
-
+		for(i = 0; !isblank(p[ i ]); i++){
+			host_name[j] =  p[ i ];
+			j++;
+		}
     	host_name[j] = '\0';
     	j=0;
-
     	i++;
     	for(;!isblank(p[ i ]); i++){
     		tcp[j] =  p[ i ];
@@ -189,7 +187,6 @@ int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, u_int16
     	}
     	tcp[j] = '\0';
     	j=0;
-
     	i++;
     	/*needs to be enabled for additional lines in location server file otherwise will crash*/
     	for(;p[ i ] != NULL; i++){
@@ -202,15 +199,12 @@ int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, u_int16
     	*tcp_port = atoi(tcp);
     	*udp_port = atoi(udp);
 
-
-
     	free(buf);
-		return 0;
+    	return 0;
 	}
-
 	/* 5. Clean up after ourselves and return. */
-
+    printf("connection failed with code %d, %s\n", code, skip_http_headers(buf));
 	free(buf);
-	return code;
+	return -1;
 
 }
