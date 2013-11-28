@@ -21,6 +21,8 @@
 #include "client.h"
 
  #include <errno.h>
+ #include <ctype.h>
+
 
 static void build_req(char *buf)
 {
@@ -68,41 +70,42 @@ static char *skip_http_headers(char *buf)
 
 int connection(int type, char *name, int port){
 
-    char buf[10];
-    sprintf(buf, "%d", port);
+	int server_socket_fd;
+	struct hostent *hp;
+	struct sockaddr_in server_addr; 
 
-	char *hostname = name;
-	char *service = buf;
-	struct addrinfo hints, *res;
-	int err;
-	int sock;
+	hp = gethostbyname(name); 
 
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_family = AF_INET;
+    if ( hp == NULL ) 
+    {  
+		fprintf(stderr, "host error\n");
+		exit(1);
+    }
 
-	if ((err = getaddrinfo(hostname, service, &hints, &res)) != 0) {
-		printf("error %d : %s\n", err, gai_strerror(err));
-		return -1;
-	}
-
-	sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	if (sock < 0) {
-		perror("socket");
-		return -1;
-	}
+    /* create socket */
+    server_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
 
     int optval = 1;
-    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
+    setsockopt(server_socket_fd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
+    
+    memset((char *)&server_addr, 0, sizeof(server_addr));
 
-	if (connect(sock, res->ai_addr, res->ai_addrlen) == -1) {
-		perror("connect");
-		return -1;
-	}
+	server_addr.sin_family = AF_INET;
 
-	freeaddrinfo(res);
+	memcpy((char *)&server_addr.sin_addr.s_addr, (char *)hp->h_addr,  hp->h_length);
 
-	return sock;
+	/*Assign the port*/
+	server_addr.sin_port = htons((unsigned short)port);
+
+    /* request connection to server */
+    if (connect(server_socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
+    {  
+		printf("connection to server refused\n");
+		return -1; 
+    }    	
+
+
+	return server_socket_fd;
 
 
 }
@@ -158,13 +161,56 @@ int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, u_int16
 	 */
 	sscanf(buf, "%*s %d%n", &code, &n);
 
-	printf("HERRRRE %d, %d\n", code, n);
 	/**** YOUR CODE HERE ****/
+	if (code == 200){
 
+		char host_name[MAX_HOST_NAME_LEN];
+		char tcp[10];
+		char udp[10];
+
+		char *str =  skip_http_headers(buf);
+  		char *p;
+  		int i;
+  		int j = 0;
+  		p = str;
+
+  		for(i = 0; !isblank(p[ i ]); i++){
+    		host_name[j] =  p[ i ];
+    		j++;
+    	}
+
+    	host_name[j] = '\0';
+    	j=0;
+
+    	i++;
+    	for(;!isblank(p[ i ]); i++){
+    		tcp[j] =  p[ i ];
+    		j++;
+    	}
+    	tcp[j] = '\0';
+    	j=0;
+
+    	i++;
+    	/*needs to be enabled for additional lines in location server file otherwise will crash*/
+    	for(;p[ i ] != NULL; i++){
+    		udp[j] =  p[ i ];
+    		j++;
+    	}
+    	udp[j] = '\0';
+
+    	strcpy(chatserver_name, host_name);
+    	*tcp_port = atoi(tcp);
+    	*udp_port = atoi(udp);
+
+
+
+    	free(buf);
+		return 0;
+	}
 
 	/* 5. Clean up after ourselves and return. */
 
 	free(buf);
-	return 0;
+	return code;
 
 }
