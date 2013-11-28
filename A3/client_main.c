@@ -242,47 +242,6 @@ int create_receiver()
 	return 0;
 }
 
-/*Returns a file descriptor to be used foe sending and receiving control messages*/
-
-int init_tcp(void){
-
-	int server_socket_fd;
-	struct hostent *hp;
-	struct sockaddr_in server_addr; 
-
-	hp = gethostbyname(server_host_name); 
-
-    if ( hp == NULL ) 
-    {  
-		fprintf(stderr, "host error\n");
-		exit(1);
-    }
-
-    /* create socket */
-    server_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-
-    int optval = 1;
-    setsockopt(server_socket_fd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
-    
-    memset((char *)&server_addr, 0, sizeof(server_addr));
-	server_addr.sin_family = AF_INET;
-	/*server_addr.sin_addr.s_addr = htonl(INADDR_ANY);*/
-	memcpy((char *)hp->h_addr, (char *)&server_addr.sin_addr.s_addr, hp->h_length);
-
-	/*Assign the port*/
-	server_addr.sin_port = htons((unsigned short)server_tcp_port);
-
-    /* request connection to server */
-    if (connect(server_socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
-    {  
-		printf("connection to server refused\n");
-		return -1; 
-    }    	
-
-    return server_socket_fd;
-}
-
-
 int init_control_msg(int type, char *message){
 
 	char *buf = (char *)malloc(MAX_MSG_LEN);
@@ -347,7 +306,7 @@ int handle_register_req()
 	struct control_msghdr *cmh;
 	struct register_msgdata *rdata;
 
-	if ((server_socket_fd = init_tcp()) == -1){
+	if ((server_socket_fd = connection(SOCK_STREAM, server_host_name, server_tcp_port)) == -1){
 		return -1;
 	}
 
@@ -688,7 +647,7 @@ int main(int argc, char **argv)
 
 	printf("Using location server to retrieve chatserver information\n");
 
-	retrieve_chatserver_info("simon", (uint16_t *) 8, (uint16_t *) 8);
+	retrieve_chatserver_info(server_host_name, &server_tcp_port, &server_udp_port);
 
 	if (strlen(member_name) == 0) {
 		usage(argv);
