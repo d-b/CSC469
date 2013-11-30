@@ -145,7 +145,7 @@ void init_receiver()
 
 	/* server is created successfully */
 
-	send_ok(ctrl2rcvr_qid, (unsigned int)ntohs(server_addr.sin_port));
+	send_ok(ctrl2rcvr_qid, ntohs(server_addr.sin_port));
 	printf("Server waiting on port:%hu\n", ntohs(server_addr.sin_port));
 
 
