@@ -106,15 +106,25 @@ void init_receiver()
 		exit(1);
 	}
 
+    int optval = 1;
+    setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
+
+          struct timeval tv;
+  tv.tv_sec = 0;
+  tv.tv_usec = 100000;
+  if (setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+      perror("Error");
+  }
+
 	memset(&server_addr, 0, server_addr_len);
 	server_addr.sin_family = AF_INET;
-	server_addr.sin_port = htons(11500);					/*port*/
+	server_addr.sin_port = htons(1000);					/*how to properly allow sys to sel port (0?)*/
 	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	/*!!!!!!!!!!!!!!! dont know if this is correct error handling*/
 	if( bind(socket_fd, (struct sockaddr *)&server_addr,
-		 server_addr_len) < 0 ) {
-		send_error(ctrl2rcvr_qid, BIND_FAILED);
+		server_addr_len) < 0 ) {
+		printf("bind\n");
 
 		server_addr.sin_port = 0;
 		if( bind(socket_fd, (struct sockaddr *)&server_addr,
@@ -193,6 +203,20 @@ void receive_msgs()
 		/**** YOUR CODE HERE ****/
 
 		memset(buf, 0, MAX_MSG_LEN);
+
+		int result;
+		msg_t msg;
+
+		result = msgrcv(ctrl2rcvr_qid, &msg, sizeof(struct body_s), RECV_TYPE, IPC_NOWAIT);
+		if (result > 0) {
+			if (msg.body.status == CHAT_QUIT) {
+				exit(1);
+
+			} else {
+				printf("IPC\n");
+				
+			}
+		}
 
 		n = recvfrom(socket_fd, buf, MAX_MSG_LEN, 0, (struct sockaddr *)&server_addr, &server_addr_len);
 
