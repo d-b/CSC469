@@ -283,6 +283,7 @@ int init_control_msg(int type, char *message){
 
 	close(server_socket_fd);
 
+	free(buf);
 
     return 0;
 
@@ -345,6 +346,8 @@ int handle_register_req()
 
 	close(server_socket_fd);
 
+	free(buf);
+
 	return 0;
 }
 
@@ -374,9 +377,7 @@ int handle_create_room_req(char *room_name)
 
 int handle_quit_req()
 {
-	send_quit(ctrl2rcvr_qid);
 	shutdown_clean();
-	
 
 	return 0;
 }
@@ -396,6 +397,7 @@ int init_client()
 	/* 0. Get server host name, port numbers from location server.
 	 *    See retrieve_chatserver_info() in client_util.c
 	 */
+	 
 	retrieve_chatserver_info(server_host_name, &server_tcp_port, &server_udp_port);
 
 #endif
@@ -485,9 +487,8 @@ void handle_chatmsg_input(char *inputdata)
 
 	int n = sendto(udp_socket_fd, buf, msg_len, 0, (struct sockaddr *)&server_udp_addr, server_udp_addr_len);
 
-	if (n < 0){
-		printf("NOT SENT\n");
-	}
+	free(buf);
+
 	return;
 }
 
