@@ -311,7 +311,7 @@ int handle_register_req()
 		return -1;
 	}
 
-	bzero(buf, MAX_MSG_LEN);
+	memset(buf, 0, MAX_MSG_LEN);
 
 	cmh = (struct control_msghdr *)buf;				
 
@@ -331,7 +331,7 @@ int handle_register_req()
 
     write(server_socket_fd, buf, msg_len);
 
-    bzero(buf, MAX_MSG_LEN);
+    memset(buf, 0, MAX_MSG_LEN);
 	read(server_socket_fd, buf, MAX_MSG_LEN);
 
 	if (ntohs(cmh->msg_type) == 3 ){
@@ -420,18 +420,15 @@ int init_client()
 		exit(1);
     }
 
-
-	server_addr_len = sizeof(server_udp_addr); 
-
 	if( (udp_socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		perror("socket");
 		exit(1);
 	}
 
-	memset(&server_udp_addr, 0, server_addr_len);
+	memset((char *)&server_udp_addr, 0, sizeof(server_udp_addr));
 	server_udp_addr.sin_family = AF_INET;
-	server_udp_addr.sin_port = htons(server_udp_port);					/*port*/
-	memcpy((char *)hp->h_addr, (char *)&server_udp_addr.sin_addr.s_addr, hp->h_length);
+	server_udp_addr.sin_port = htons((unsigned short)server_udp_port);					/*port*/
+	memcpy((char *)&server_udp_addr.sin_addr.s_addr, (char *)hp->h_addr, hp->h_length);
 
 	/* 3. spawn receiver process - see create_receiver() in this file. */
 	if ((create_receiver()) == -1){
@@ -483,9 +480,9 @@ void handle_chatmsg_input(char *inputdata)
    
     cmh->msg_len = htons(msg_len);
 
-	socklen_t server_udp_addr_len = sizeof(server_udp_addr);
+	int server_udp_addr_len = sizeof(server_udp_addr);
 
-	int n = sendto(udp_socket_fd, buf, msg_len, 0, (struct sockaddr *)&server_udp_addr, server_udp_addr_len);
+	int n = sendto(udp_socket_fd, buf, msg_len, 0, &server_udp_addr, server_udp_addr_len);
 
 	free(buf);
 
