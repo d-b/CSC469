@@ -374,6 +374,9 @@ int handle_create_room_req(char *room_name)
 
 int handle_quit_req()
 {
+	send_quit(ctrl2rcvr_qid);
+	shutdown_clean();
+	
 
 	return 0;
 }
@@ -393,12 +396,13 @@ int init_client()
 	/* 0. Get server host name, port numbers from location server.
 	 *    See retrieve_chatserver_info() in client_util.c
 	 */
+	retrieve_chatserver_info(server_host_name, &server_tcp_port, &server_udp_port);
 
 #endif
  
 	/* 1. initialization to allow TCP-based control messages to chat server */
 
-	/* Currently handled in step 4 while registering*/
+			/* Currently handled in step 4 while registering*/
 
 	/* 2. initialization to allow UDP-based chat messages to chat server */
 
@@ -428,7 +432,9 @@ int init_client()
 	memcpy((char *)hp->h_addr, (char *)&server_udp_addr.sin_addr.s_addr, hp->h_length);
 
 	/* 3. spawn receiver process - see create_receiver() in this file. */
-	create_receiver();
+	if ((create_receiver()) == -1){
+		return -1;
+	}
 
 	/* 4. register with chat server */
 
@@ -646,8 +652,6 @@ int main(int argc, char **argv)
 #ifdef USE_LOCN_SERVER
 
 	printf("Using location server to retrieve chatserver information\n");
-
-	retrieve_chatserver_info(server_host_name, &server_tcp_port, &server_udp_port);
 
 	if (strlen(member_name) == 0) {
 		usage(argv);
