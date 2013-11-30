@@ -26,6 +26,8 @@ char ctrl2rcvr_fname[MAX_FILE_NAME_LEN];
 /* Global variables for remote UDP server address and our UDP port number */
 struct sockaddr_in server_addr;
 int socket_fd;
+/* For control of socket timeout/ main receiver loop speed */
+int TIMEOUT = 5;
 
 void usage(char **argv) {
 	printf("usage:\n");
@@ -110,8 +112,8 @@ void init_receiver()
     setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
 
           struct timeval tv;
-  tv.tv_sec = 0;
-  tv.tv_usec = 100000;
+  tv.tv_sec = TIMEOUT;
+  tv.tv_usec = 0;
   if (setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
       perror("Error");
   }
@@ -220,7 +222,9 @@ void receive_msgs()
 
 		n = recvfrom(socket_fd, buf, MAX_MSG_LEN, 0, (struct sockaddr *)&server_addr, &server_addr_len);
 
-		handle_received_msg(buf);
+		if (n > 0){
+			handle_received_msg(buf);
+		}
 	}
 
 	/* Cleanup */
