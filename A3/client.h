@@ -62,5 +62,3 @@ extern int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, 
 
 extern int connection(int type, char *name, int port);
 
-extern void send_quit(int qid);
-
