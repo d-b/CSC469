@@ -30,7 +30,7 @@ static void build_req(char *buf)
 
 	int nextpos;
 
-	sprintf(buf,"GET /~csc469h/winter/chatserver.txt HTTP/1.0\r\n");
+	sprintf(buf,"GET /~csc469h/fall/chatserver.txt HTTP/1.0\r\n");
 
 	nextpos = strlen(buf);
 	sprintf(&buf[nextpos],"\r\n");
@@ -83,7 +83,7 @@ int connection(int type, char *name, int port){
     }
 
     /* create socket */
-    server_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    server_socket_fd = socket(AF_INET, type, 0);
 
     int optval = 1;
     setsockopt(server_socket_fd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
