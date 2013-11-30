@@ -110,20 +110,6 @@ int connection(int type, char *name, int port){
 
 }
 
-void send_quit(int qid)
-{
-	/* Send an error result over the message channel to client control process */
-	msg_t msg;
-
-	msg.mtype = RECV_TYPE;
-	msg.body.status = CHAT_QUIT;
-
-	if (msgsnd(qid, &msg, sizeof(struct body_s), 0) < 0) {
-		perror("send_quit msgsnd");
-	}
-							 
-}
-
 int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, u_int16_t *udp_port)
 {
 	int locn_socket_fd;
