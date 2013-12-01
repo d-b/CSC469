@@ -118,15 +118,12 @@ void init_receiver()
 
 	memset(&server_addr, 0, server_addr_len);
 	server_addr.sin_family = AF_INET;
-	server_addr.sin_port = htons(1000);					/*how to properly allow sys to sel port (0?)*/
+
 	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-	/*!!!!!!!!!!!!!!! dont know if this is correct error handling*/
-	if( bind(socket_fd, (struct sockaddr *)&server_addr,
-		server_addr_len) < 0 ) {
-		printf("bind\n");
 
 		server_addr.sin_port = 0;
+
 		if( bind(socket_fd, (struct sockaddr *)&server_addr,
 			 server_addr_len) < 0 ) {
 			send_error(ctrl2rcvr_qid, BIND_FAILED);
@@ -138,7 +135,7 @@ void init_receiver()
 			send_error(ctrl2rcvr_qid, NAME_FAILED);
 			exit(1);
 		}
-	} 
+
     
 
 	/* server is created successfully */
@@ -206,7 +203,7 @@ void receive_msgs()
 
 		int result;
 		msg_t msg;
-
+		
 		result = msgrcv(ctrl2rcvr_qid, &msg, sizeof(struct body_s), RECV_TYPE, IPC_NOWAIT);
 		if (result > 0) {
 			if (msg.body.status == CHAT_QUIT) {
@@ -217,10 +214,11 @@ void receive_msgs()
 				
 			}
 		}
-
+		
 		n = recvfrom(socket_fd, buf, MAX_MSG_LEN, 0, (struct sockaddr *)&server_addr, &server_addr_len);
 
 		if (n > 0){
+			printf("JHGKJHF\n");
 			handle_received_msg(buf);
 		}
 	}
