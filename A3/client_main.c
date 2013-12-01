@@ -480,9 +480,9 @@ void handle_chatmsg_input(char *inputdata)
    
     cmh->msg_len = htons(msg_len);
 
-	int server_udp_addr_len = sizeof(server_udp_addr);
+	socklen_t server_udp_addr_len = sizeof(server_udp_addr);
 
-	int n = sendto(udp_socket_fd, buf, msg_len, 0, &server_udp_addr, server_udp_addr_len);
+	int n = sendto(udp_socket_fd, buf, msg_len, 0, (struct sockaddr *)&server_udp_addr, server_udp_addr_len);
 
 	free(buf);
 
