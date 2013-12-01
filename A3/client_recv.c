@@ -99,8 +99,6 @@ void init_receiver()
 
 	socklen_t server_addr_len;
 
-	struct hostent *hp;
-
 	server_addr_len = sizeof(server_addr);
 
 	if( (socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
