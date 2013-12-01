@@ -320,7 +320,7 @@ int handle_register_req()
 	rdata = (struct register_msgdata *) cmh->msgdata;
 
 	rdata->udp_port = htons(client_udp_port);
-
+	printf("PORT UDP %d\n", client_udp_port);
 	strcpy((char *)rdata->member_name, member_name);
 
 	msg_len = sizeof(struct control_msghdr) +
@@ -377,6 +377,7 @@ int handle_create_room_req(char *room_name)
 
 int handle_quit_req()
 {
+	init_control_msg(QUIT_REQUEST, "");
 	shutdown_clean();
 
 	return 0;
@@ -427,8 +428,10 @@ int init_client()
 
 	memset((char *)&server_udp_addr, 0, sizeof(server_udp_addr));
 	server_udp_addr.sin_family = AF_INET;
-	server_udp_addr.sin_port = htons((unsigned short)server_udp_port);					/*port*/
+
 	memcpy((char *)&server_udp_addr.sin_addr.s_addr, (char *)hp->h_addr, hp->h_length);
+
+	server_udp_addr.sin_port = htons((unsigned short)server_udp_port);					/*port*/
 
 	/* 3. spawn receiver process - see create_receiver() in this file. */
 	if ((create_receiver()) == -1){
