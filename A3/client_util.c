@@ -100,7 +100,7 @@ int connection(int type, char *name, int port){
     /* request connection to server */
     if (connect(server_socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
     {  
-		printf("connection to server refused\n");
+		printf("\nconnection to server refused\n");
 		return -1; 
     }    	
 
