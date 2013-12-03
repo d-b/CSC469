@@ -652,10 +652,9 @@ void get_user_input()
 	char *buf = (char *)malloc(MAX_MSGDATA);
 	char *result_str;
 
-	// File descriptor set containing stdin
+	// File descriptor set to contain stdin
 	int fds_max =  fileno(stdin) + 1;
 	fd_set fds_input;
-	FD_ZERO(&fds_input);
 
 	// Setup timeout value for input
 	struct timeval timeout = {
@@ -672,7 +671,8 @@ void get_user_input()
 
 		for(;;) {
 			// Select for stdin
-			FD_SET(fileno(stdin), &fds_input);		
+			FD_ZERO(&fds_input);
+			FD_SET(fileno(stdin), &fds_input);
 
 			// Select on stdin
 			int res = select(fds_max, &fds_input, NULL, NULL, &timeout);
