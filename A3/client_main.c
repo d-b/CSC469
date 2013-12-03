@@ -357,6 +357,7 @@ int handle_register_req()
 	if (ntohs(cmh->msg_type) == REGISTER_SUCC ){
 		member_id = ntohs(cmh->member_id);
 		status = REGISTER_SUCC;
+		printf("client init sucessfull ID: %d\n", member_id);
 	}
 
 	close(server_socket_fd);
@@ -526,6 +527,8 @@ void append(char* s, char c)
 
 int recover(){
 
+	printf("RECOVERY ");
+
 	if (init_client() == REGISTER_FAIL){
 		append(member_name, '*');
 		init_client();
@@ -536,11 +539,16 @@ int recover(){
 		handle_switch_room_req(room);
 	}
 
+	printf("\n[%s]>  ",member_name);
+	fflush(stdout);
+
 	return 0;
 }
 
 void heartbeat(){
-	handle_timeout_req();
+	if (handle_timeout_req() < 0){
+		recover();
+	}
 }
 
 
@@ -637,7 +645,6 @@ void handle_command_input(char *line)
 
 	if (result < 0){ 
 			recover();
-			printf("RECOVERY");
 	}
 
 	return;
@@ -758,8 +765,11 @@ int main(int argc, char **argv)
 	}
 
 #endif /* USE_LOCN_SERVER */
-
-	init_client();
+ 
+	if (init_client() == REGISTER_FAIL){
+		printf("register failed\n");
+		shutdown_clean();
+	}
 
 	get_user_input();
 
