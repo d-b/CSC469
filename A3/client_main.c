@@ -655,12 +655,7 @@ void get_user_input()
 	// File descriptor set to contain stdin
 	int fds_max =  fileno(stdin) + 1;
 	fd_set fds_input;
-
-	// Setup timeout value for input
-	struct timeval timeout = {
-		KEEPALIVE_SECONDS,       /* tv_sec  */
-		KEEPALIVE_MICROSECONDS , /* tv_usec */
-	};
+	FD_ZERO(&fds_input);
 
 	while(TRUE) {
 
@@ -670,9 +665,14 @@ void get_user_input()
 		fflush(stdout);
 
 		for(;;) {
+			// Setup timeout value for input
+			struct timeval timeout = {
+				KEEPALIVE_SECONDS,       /* tv_sec  */
+				KEEPALIVE_MICROSECONDS , /* tv_usec */
+			};
+			
 			// Select for stdin
-			FD_ZERO(&fds_input);
-			FD_SET(fileno(stdin), &fds_input);
+			FD_SET(fileno(stdin), &fds_input);		
 
 			// Select on stdin
 			int res = select(fds_max, &fds_input, NULL, NULL, &timeout);
