@@ -37,6 +37,11 @@ char server_host_name[MAX_HOST_NAME_LEN];
 u_int16_t server_tcp_port;
 struct sockaddr_in server_tcp_addr;
 
+/* for saving client state */
+int in_room = 0;
+char room[MAX_ROOM_NAME_LEN];
+int first_run = 0;
+
 /* For chat messages */
 u_int16_t server_udp_port;
 struct sockaddr_in server_udp_addr;
@@ -244,9 +249,15 @@ int create_receiver()
 
 int init_control_msg(int type, char *message){
 
+	int status = 0;
+
 	char *buf = (char *)malloc(MAX_MSG_LEN);
 
 	int server_socket_fd = connection(SOCK_STREAM, server_host_name, server_tcp_port);
+
+	if (server_socket_fd < 0){
+		return -1;
+	}
 
 	int msg_len;
 	struct control_msghdr *cmh;
@@ -273,19 +284,26 @@ int init_control_msg(int type, char *message){
 
 	if (ntohs(cmh->msg_type) == type + 1 ){
 		printf("sucessfull");
+		status = 1;
+		if (type == SWITCH_ROOM_REQUEST){
+			in_room = 1;
+			strcpy(room, message);
+		}
 		printf("%s", (char *)cmh->msgdata);
 	}
 
 	if (ntohs(cmh->msg_type) == type + 2 ){
+		status = 2;
 		printf("failed");
 	}
 
 
 	close(server_socket_fd);
 
+
 	free(buf);
 
-    return 0;
+    return status;
 
 }
 
@@ -434,8 +452,12 @@ int init_client()
 	server_udp_addr.sin_port = htons((unsigned short)server_udp_port);					/*port*/
 
 	/* 3. spawn receiver process - see create_receiver() in this file. */
-	if ((create_receiver()) == -1){
-		return -1;
+
+	if (first_run == 0){
+		first_run = 1;
+		if ((create_receiver()) == -1){
+			return -1;
+		}
 	}
 
 	/* 4. register with chat server */
@@ -443,7 +465,7 @@ int init_client()
 	if ((handle_register_req()) == -1){
 		return -1;
 	}
-
+	init_control_msg(MEMBER_KEEP_ALIVE, member_name);
 
 	return 0;
 
@@ -584,8 +606,25 @@ void handle_command_input(char *line)
 	 * You may want to change that.
 	 */
 
+	if (result < 0){ 
+			recover();
+			printf("RECOVERY");
+	}
+
 	return;
 }
+
+
+int recover(){
+	init_client();
+
+	if (in_room == 1){
+		handle_create_room_req(room);
+		handle_switch_room_req(room);
+	}
+
+}
+
 
 void get_user_input()
 {
