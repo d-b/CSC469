@@ -141,9 +141,6 @@ void init_receiver()
 	/* server is created successfully */
 
 	send_ok(ctrl2rcvr_qid, ntohs(server_addr.sin_port));
-	printf("Server waiting on port:%hu\n", ntohs(server_addr.sin_port));
-
-
 
 	/* 3. Tell parent the port number if successful, or failure code if not. 
 	 *    Use the send_error and send_ok functions
@@ -164,6 +161,8 @@ void handle_received_msg(char *buf)
 	struct chat_msghdr *cmh;
 
 	cmh = (struct chat_msghdr *)buf;
+
+	printf("%s: ", cmh->sender.member_name);
 
 	printf("%s", (char *)cmh->msgdata);
 
@@ -196,6 +195,7 @@ void receive_msgs()
 	
 	int n;
 	socklen_t server_addr_len = sizeof(server_addr);
+
 	while(TRUE) {
 		/**** YOUR CODE HERE ****/
 
@@ -209,16 +209,12 @@ void receive_msgs()
 			if (msg.body.status == CHAT_QUIT) {
 				exit(1);
 
-			} else {
-				printf("IPC\n");
-				
-			}
+			} 
 		}
 		
 		n = recvfrom(socket_fd, buf, MAX_MSG_LEN, 0, (struct sockaddr *)&server_addr, &server_addr_len);
 
 		if (n > 0){
-			printf("JHGKJHF\n");
 			handle_received_msg(buf);
 		}
 	}
