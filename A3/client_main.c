@@ -656,7 +656,6 @@ void get_user_input()
 	int fds_max =  fileno(stdin) + 1;
 	fd_set fds_input;
 	FD_ZERO(&fds_input);
-	FD_SET(fileno(stdin), &fds_input);
 
 	// Setup timeout value for input
 	struct timeval timeout = {
@@ -669,12 +668,13 @@ void get_user_input()
 		bzero(buf, MAX_MSGDATA);
 
 		printf("\n[%s]>  ",member_name);
+		fflush(stdout);
+
+		// Select for stdin
+		FD_SET(fileno(stdin), &fds_input);		
 
 		// Select on stdin
 		int res = select(fds_max, &fds_input, NULL, NULL, &timeout);
-
-		// Set stdin again
-		FD_SET(fileno(stdin), &fds_input);
 
 		// On error bail out
 		if(res < 0) {
