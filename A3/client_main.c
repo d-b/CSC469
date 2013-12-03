@@ -357,7 +357,6 @@ int handle_register_req()
 	if (ntohs(cmh->msg_type) == REGISTER_SUCC ){
 		member_id = ntohs(cmh->member_id);
 		status = REGISTER_SUCC;
-		printf("client init sucessfull ID: %d\n", member_id);
 	}
 
 	close(server_socket_fd);
