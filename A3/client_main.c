@@ -514,6 +514,18 @@ void handle_chatmsg_input(char *inputdata)
 	return;
 }
 
+int recover(){
+
+	init_client();
+
+	if (in_room == 1){
+		handle_create_room_req(room);
+		handle_switch_room_req(room);
+	}
+
+	return 0;
+
+}
 
 /* This should be called with the leading "!" stripped off the original
  * input line.
@@ -612,17 +624,6 @@ void handle_command_input(char *line)
 	}
 
 	return;
-}
-
-
-int recover(){
-	init_client();
-
-	if (in_room == 1){
-		handle_create_room_req(room);
-		handle_switch_room_req(room);
-	}
-
 }
 
 
