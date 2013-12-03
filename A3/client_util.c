@@ -79,7 +79,7 @@ int connection(int type, char *name, int port){
     if ( hp == NULL ) 
     {  
 		fprintf(stderr, "host error\n");
-		exit(1);
+		return -1;
     }
 
     /* create socket */
