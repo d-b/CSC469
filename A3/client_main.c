@@ -670,19 +670,24 @@ void get_user_input()
 		printf("\n[%s]>  ",member_name);
 		fflush(stdout);
 
-		// Select for stdin
-		FD_SET(fileno(stdin), &fds_input);		
+		for(;;) {
+			// Select for stdin
+			FD_SET(fileno(stdin), &fds_input);		
 
-		// Select on stdin
-		int res = select(fds_max, &fds_input, NULL, NULL, &timeout);
+			// Select on stdin
+			int res = select(fds_max, &fds_input, NULL, NULL, &timeout);
 
-		// On error bail out
-		if(res < 0) {
-			perror("select"); abort();
-		}
-		// If a timeout occurred trigger a heartbeat
-		else if(res == 0) {
-			heartbeat(); continue;
+			// On error bail out
+			if(res < 0) {
+				perror("select"); abort();
+			}
+			// If a timeout occurred trigger a heartbeat
+			else if(res == 0) {
+				heartbeat(); continue;
+			}
+
+			// Break out and proceed to process input
+			break;
 		}
 
 		result_str = fgets(buf,MAX_MSGDATA,stdin);
