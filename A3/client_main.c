@@ -317,6 +317,7 @@ int init_control_msg(int type, char *message){
 
 int handle_register_req()
 {
+	int status;
 	int server_socket_fd;
 	int msg_len;
 	char *buf = (char *)malloc(MAX_MSG_LEN);
@@ -352,13 +353,14 @@ int handle_register_req()
     memset(buf, 0, MAX_MSG_LEN);
 	read(server_socket_fd, buf, MAX_MSG_LEN);
 
-	if (ntohs(cmh->msg_type) == 3 ){
+	if (ntohs(cmh->msg_type) == REGISTER_FAIL ){
 		printf("client init failed");
-		return -1;
+		status = REGISTER_FAIL;
 	}
 
-	if (ntohs(cmh->msg_type) == 2 ){
+	if (ntohs(cmh->msg_type) == REGISTER_SUCC ){
 		member_id = ntohs(cmh->member_id);
+		status = REGISTER_SUCC;
 		printf("client init sucessfull ID: %d", member_id);
 	}
 
@@ -366,7 +368,7 @@ int handle_register_req()
 
 	free(buf);
 
-	return 0;
+	return status;
 }
 
 int handle_room_list_req()
@@ -409,6 +411,7 @@ int init_client()
 	 *
 	 * YOUR CODE HERE
 	 */
+	 int status;
 
 
 #ifdef USE_LOCN_SERVER
@@ -462,12 +465,14 @@ int init_client()
 
 	/* 4. register with chat server */
 
-	if ((handle_register_req()) == -1){
+	if ((status = handle_register_req()) == -1){
 		return -1;
 	}
-	init_control_msg(MEMBER_KEEP_ALIVE, member_name);
 
-	return 0;
+
+	
+
+	return status;
 
 }
 
@@ -514,9 +519,19 @@ void handle_chatmsg_input(char *inputdata)
 	return;
 }
 
+void append(char* s, char c)
+{
+        int len = strlen(s);
+        s[len] = c;
+        s[len+1] = '\0';
+}
+
 int recover(){
 
-	init_client();
+	if (init_client() == REGISTER_FAIL){
+		append(member_name, '*');
+		init_client();
+	}
 
 	if (in_room == 1){
 		handle_create_room_req(room);
@@ -526,6 +541,7 @@ int recover(){
 	return 0;
 
 }
+
 
 /* This should be called with the leading "!" stripped off the original
  * input line.
