@@ -27,7 +27,7 @@ char ctrl2rcvr_fname[MAX_FILE_NAME_LEN];
 struct sockaddr_in server_addr;
 int socket_fd;
 /* For control of socket timeout/ main receiver loop speed */
-int TIMEOUT = 5;
+int TIMEOUT = 1;
 
 void usage(char **argv) {
 	printf("usage:\n");
@@ -141,6 +141,7 @@ void init_receiver()
 	/* server is created successfully */
 
 	send_ok(ctrl2rcvr_qid, ntohs(server_addr.sin_port));
+	printf("Client channel open\n");
 
 	/* 3. Tell parent the port number if successful, or failure code if not. 
 	 *    Use the send_error and send_ok functions
