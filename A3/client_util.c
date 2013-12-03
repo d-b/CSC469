@@ -188,7 +188,7 @@ int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, u_int16
     	j=0;
     	i++;
     	/*needs to be enabled for additional lines in location server file otherwise will crash*/
-    	for(;p[ i ] != NULL; i++){
+    	for(;p[ i ] != 0; i++){
     		udp[j] =  p[ i ];
     		j++;
     	}

@@ -389,6 +389,11 @@ int handle_create_room_req(char *room_name)
 
 }
 
+int handle_timeout_req()
+{
+	return init_control_msg(MEMBER_KEEP_ALIVE, "");
+}
+
 
 int handle_quit_req()
 {
@@ -532,7 +537,10 @@ int recover(){
 	}
 
 	return 0;
+}
 
+void heartbeat(){
+	handle_timeout_req();
 }
 
 
@@ -635,17 +643,47 @@ void handle_command_input(char *line)
 	return;
 }
 
+// TODO: move to a better location
+#define KEEPALIVE_SECONDS      10
+#define KEEPALIVE_MICROSECONDS 0
 
 void get_user_input()
 {
 	char *buf = (char *)malloc(MAX_MSGDATA);
 	char *result_str;
 
+	// File descriptor set containing stdin
+	int fds_max =  fileno(stdin) + 1;
+	fd_set fds_input;
+	FD_ZERO(&fds_input);
+	FD_SET(fileno(stdin), &fds_input);
+
+	// Setup timeout value for input
+	struct timeval timeout = {
+		KEEPALIVE_SECONDS,       /* tv_sec  */
+		KEEPALIVE_MICROSECONDS , /* tv_usec */
+	};
+
 	while(TRUE) {
 
 		bzero(buf, MAX_MSGDATA);
 
 		printf("\n[%s]>  ",member_name);
+
+		// Select on stdin
+		int res = select(fds_max, &fds_input, NULL, NULL, &timeout);
+
+		// Set stdin again
+		FD_SET(fileno(stdin), &fds_input);
+
+		// On error bail out
+		if(res < 0) {
+			perror("select"); abort();
+		}
+		// If a timeout occurred trigger a heartbeat
+		else if(res == 0) {
+			heartbeat(); continue;
+		}
 
 		result_str = fgets(buf,MAX_MSGDATA,stdin);
 
