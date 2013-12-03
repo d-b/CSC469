@@ -283,7 +283,6 @@ int init_control_msg(int type, char *message){
 	read(server_socket_fd, buf, MAX_MSG_LEN);
 
 	if (ntohs(cmh->msg_type) == type + 1 ){
-		printf("sucessfull");
 		status = 1;
 		if (type == SWITCH_ROOM_REQUEST){
 			in_room = 1;
@@ -294,7 +293,6 @@ int init_control_msg(int type, char *message){
 
 	if (ntohs(cmh->msg_type) == type + 2 ){
 		status = 2;
-		printf("failed");
 	}
 
 
@@ -339,7 +337,6 @@ int handle_register_req()
 	rdata = (struct register_msgdata *) cmh->msgdata;
 
 	rdata->udp_port = htons(client_udp_port);
-	printf("PORT UDP %d\n", client_udp_port);
 	strcpy((char *)rdata->member_name, member_name);
 
 	msg_len = sizeof(struct control_msghdr) +
@@ -354,14 +351,12 @@ int handle_register_req()
 	read(server_socket_fd, buf, MAX_MSG_LEN);
 
 	if (ntohs(cmh->msg_type) == REGISTER_FAIL ){
-		printf("client init failed");
 		status = REGISTER_FAIL;
 	}
 
 	if (ntohs(cmh->msg_type) == REGISTER_SUCC ){
 		member_id = ntohs(cmh->member_id);
 		status = REGISTER_SUCC;
-		printf("client init sucessfull ID: %d", member_id);
 	}
 
 	close(server_socket_fd);
@@ -430,20 +425,18 @@ int init_client()
 
 	/* 2. initialization to allow UDP-based chat messages to chat server */
 
-	socklen_t server_addr_len;
-
 	struct hostent *hp;
 
 	hp = gethostbyname(server_host_name);  						/*host*/
 
     if ( hp == NULL ) 
     {  
-		fprintf(stderr, "host error\n");
+		printf("host error\n");
 		exit(1);
     }
 
 	if( (udp_socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		perror("socket");
+		printf("socket\n");
 		exit(1);
 	}
 
@@ -512,7 +505,7 @@ void handle_chatmsg_input(char *inputdata)
 
 	socklen_t server_udp_addr_len = sizeof(server_udp_addr);
 
-	int n = sendto(udp_socket_fd, buf, msg_len, 0, (struct sockaddr *)&server_udp_addr, server_udp_addr_len);
+	sendto(udp_socket_fd, buf, msg_len, 0, (struct sockaddr *)&server_udp_addr, server_udp_addr_len);
 
 	free(buf);
 
