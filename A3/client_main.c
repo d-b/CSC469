@@ -74,7 +74,8 @@ static void usage(char **argv) {
 #ifdef USE_LOCN_SERVER
 	printf("%s -n <client member name>\n",argv[0]);
 #else 
-	printf("%s -h <server host name> -t <server tcp port> -u <server udp port> -n <client member name>\n",argv[0]);
+	printf("%s -h <server host name> -t <server tcp port> -u <server udp port> \
+		-n <client member name>\n",argv[0]);
 #endif /* USE_LOCN_SERVER */
 
 	exit(1);
@@ -217,7 +218,8 @@ int create_receiver()
 	while ( numtries < retries ) {
 		int result;
 		msg_t msg;
-		result = msgrcv(ctrl2rcvr_qid, &msg, sizeof(struct body_s), CTRL_TYPE, IPC_NOWAIT);
+		result = msgrcv(ctrl2rcvr_qid, &msg, sizeof(struct body_s), CTRL_TYPE,\
+		 IPC_NOWAIT);
 		if (result == -1 && errno == ENOMSG) {
 			sleep(1);
 			numtries++;
@@ -247,13 +249,26 @@ int create_receiver()
 	return 0;
 }
 
+/*
+ *  FUNCTION: init_control_msg
+ *
+ *  SYNOPSIS: Send a control message
+ *
+ *  PASS:     int type of message, and char *messahe the body.
+ *
+ *  RETURN:   if success, return 1
+ *            else return > 0
+ *           
+ */
+
 int init_control_msg(int type, char *message){
 
 	int status = 0;
 
 	char *buf = (char *)malloc(MAX_MSG_LEN);
 
-	int server_socket_fd = connection(SOCK_STREAM, server_host_name, server_tcp_port);
+	int server_socket_fd = connection(SOCK_STREAM, server_host_name, \
+		server_tcp_port);
 
 	if (server_socket_fd < 0){
 		return -1;
@@ -324,7 +339,8 @@ int handle_register_req()
 	struct control_msghdr *cmh;
 	struct register_msgdata *rdata;
 
-	if ((server_socket_fd = connection(SOCK_STREAM, server_host_name, server_tcp_port)) == -1){
+	if ((server_socket_fd = connection(SOCK_STREAM, server_host_name, \
+		server_tcp_port)) == -1){
 		return -1;
 	}
 
@@ -448,7 +464,8 @@ int init_client()
 	memset((char *)&server_udp_addr, 0, sizeof(server_udp_addr));
 	server_udp_addr.sin_family = AF_INET;
 
-	memcpy((char *)&server_udp_addr.sin_addr.s_addr, (char *)hp->h_addr, hp->h_length);
+	memcpy((char *)&server_udp_addr.sin_addr.s_addr, (char *)hp->h_addr, \
+		hp->h_length);
 
 	server_udp_addr.sin_port = htons((unsigned short)server_udp_port);					/*port*/
 
@@ -510,13 +527,24 @@ void handle_chatmsg_input(char *inputdata)
 
 	socklen_t server_udp_addr_len = sizeof(server_udp_addr);
 
-	sendto(udp_socket_fd, buf, msg_len, 0, (struct sockaddr *)&server_udp_addr, server_udp_addr_len);
+	sendto(udp_socket_fd, buf, msg_len, 0, (struct sockaddr *)&server_udp_addr, \
+		server_udp_addr_len);
 
 	free(buf);
 
 	return;
 }
 
+/*
+ *  FUNCTION: append
+ *
+ *  SYNOPSIS: Append a single cgaracter to a string.
+ *
+ *  PASS:     char *s the string to append and char c the character to append with.
+ *
+ *  RETURN:   void
+ *           
+ */
 void append(char* s, char c)
 {
         int len = strlen(s);
@@ -524,6 +552,14 @@ void append(char* s, char c)
         s[len+1] = '\0';
 }
 
+/*
+ *  FUNCTION: recover
+ *
+ *  SYNOPSIS: Perform chat server recovery operations.
+ *
+ *  RETURN:   0
+ *           
+ */
 int recover(){
 
 	printf("RECOVERY ");
@@ -543,6 +579,14 @@ int recover(){
 
 	return 0;
 }
+
+/*
+ *  FUNCTION: heartbeat
+ *
+ *  SYNOPSIS: Send a lightweight keep alive packet to the server, 
+ *	check for socket error.
+ *           
+ */
 
 void heartbeat(){
 	if (handle_timeout_req() < 0){
@@ -573,7 +617,8 @@ void handle_command_input(char *line)
 	case 'r':
 	case 'q':
 		if (strlen(line) != 0) {
-			printf("Error in command format: !%c should not be followed by anything.\n",cmd);
+			printf("Error in command format: !%c should not be followed by \
+				anything.\n",cmd);
 			return;
 		}
 		break;
@@ -585,7 +630,8 @@ void handle_command_input(char *line)
 			int allowed_len = MAX_ROOM_NAME_LEN;
 
 			if (line[0] != ' ') {
-				printf("Error in command format: !%c should be followed by a space and a room name.\n",cmd);
+				printf("Error in command format: !%c should be followed by a \
+					space and a room name.\n",cmd);
 				return;
 			}
 			line++; /* skip space before room name */
@@ -593,11 +639,13 @@ void handle_command_input(char *line)
 			len = strlen(line);
 			goodlen = strcspn(line, " \t\n"); /* Any more whitespace in line? */
 			if (len != goodlen) {
-				printf("Error in command format: line contains extra whitespace (space, tab or carriage return)\n");
+				printf("Error in command format: line contains extra whitespace \
+					(space, tab or carriage return)\n");
 				return;
 			}
 			if (len > allowed_len) {
-				printf("Error in command format: name must not exceed %d characters.\n",allowed_len);
+				printf("Error in command format: name must not exceed %d \
+					characters.\n",allowed_len);
 				return;
 			}
 		}
