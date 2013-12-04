@@ -107,7 +107,8 @@ void init_receiver()
 	}
 
     int optval = 1;
-    setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
+    setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , \
+    	sizeof(int));
 
           struct timeval tv;
   tv.tv_sec = TIMEOUT;
@@ -205,7 +206,8 @@ void receive_msgs()
 		int result;
 		msg_t msg;
 		
-		result = msgrcv(ctrl2rcvr_qid, &msg, sizeof(struct body_s), RECV_TYPE, IPC_NOWAIT);
+		result = msgrcv(ctrl2rcvr_qid, &msg, sizeof(struct body_s), RECV_TYPE, \
+			IPC_NOWAIT);
 		if (result > 0) {
 			if (msg.body.status == CHAT_QUIT) {
 				exit(1);
@@ -213,7 +215,8 @@ void receive_msgs()
 			} 
 		}
 		
-		n = recvfrom(socket_fd, buf, MAX_MSG_LEN, 0, (struct sockaddr *)&server_addr, &server_addr_len);
+		n = recvfrom(socket_fd, buf, MAX_MSG_LEN, 0, \
+			(struct sockaddr *)&server_addr, &server_addr_len);
 
 		if (n > 0){
 			handle_received_msg(buf);
