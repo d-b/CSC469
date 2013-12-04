@@ -68,6 +68,17 @@ static char *skip_http_headers(char *buf)
 	return curpos;
 }
 
+/*
+ *  FUNCTION: connection
+ *
+ *  SYNOPSIS: Attempts to create a UDP of TCP connectionto a particulat host on a particular port.
+ *
+ *  PASS:    int type TCP/UDP, hostname char *name and port *port.
+ *
+ *  RETURN:   -1 in case of error, a valid file descriptor otherwise.
+ *           
+ */
+
 int connection(int type, char *name, int port){
 
 	int server_socket_fd;
@@ -86,7 +97,8 @@ int connection(int type, char *name, int port){
     server_socket_fd = socket(AF_INET, type, 0);
 
     int optval = 1;
-    setsockopt(server_socket_fd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval , sizeof(int));
+    setsockopt(server_socket_fd, SOL_SOCKET, SO_REUSEADDR,(const void *)&optval\
+     , sizeof(int));
     
     memset((char *)&server_addr, 0, sizeof(server_addr));
 
@@ -98,7 +110,8 @@ int connection(int type, char *name, int port){
 	server_addr.sin_port = htons((unsigned short)port);
 
     /* request connection to server */
-    if (connect(server_socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1)
+    if (connect(server_socket_fd, (struct sockaddr *)&server_addr, \
+    	sizeof(server_addr)) == -1)
     {  
 		return -1; 
     }    	
@@ -109,7 +122,8 @@ int connection(int type, char *name, int port){
 
 }
 
-int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, u_int16_t *udp_port)
+int retrieve_chatserver_info(char *chatserver_name, u_int16_t *tcp_port, \
+	u_int16_t *udp_port)
 {
 	int locn_socket_fd;
 	char *buf;
